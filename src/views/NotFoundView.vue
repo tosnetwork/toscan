@@ -1,0 +1,1 @@
+<template><div class="container narrow-page"><section class="surface search-empty"><span class="empty-mark">404</span><h1>Page not found</h1><p>The explorer route you requested does not exist.</p><RouterLink class="button" to="/">Back to explorer</RouterLink></section></div></template>
