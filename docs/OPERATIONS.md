@@ -115,7 +115,7 @@ TOSCAN_SMOKE_ORIGIN=https://explorer.example pnpm production:smoke
 
 The scale gate inserts one million transactions, verifies thousands of unique keyset-paginated records while concurrent newer rows arrive, requires the intended index plan, and enforces a one-second local p95 budget. The recovery gate repeatedly closes and reopens the projection database, verifies canonical reset/replay and tests advisory-lease takeover. Treat both as release gates, not optional benchmarks.
 
-The TOS repository must also pass `cargo test -p service` and `uv run python scripts/toscan-explorer-e2e.py`. TOSCAN CI invokes that native-chain gate with the browser hook, so validator → source index → PostgreSQL → gateway → browser is release-gated as one path.
+TOSCAN's GitHub workflows intentionally stop at the application boundary: they do not clone, compile, boot or query a TOS node. When a node, indexer or explorer API contract changes, run the TOS repository's own service tests and invoke `pnpm test:e2e:real-chain` (or `scripts/real-chain-browser-gate.py`) explicitly against the prepared environment. This compatibility exercise is local or deployment-stage evidence, not a pull-request or image-build dependency.
 
 Promote only when PostgreSQL projection lag reaches zero (or the explicitly approved deployment threshold) and search resolves a recent base64 node block hash, transaction hash and seeded contract address.
 

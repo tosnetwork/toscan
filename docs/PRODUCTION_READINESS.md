@@ -6,10 +6,10 @@ This document is the acceptance contract for the chain-authority closure (P0), p
 
 | Capability | Implementation | Release evidence |
 | --- | --- | --- |
-| Real-chain vertical path | Pinned TOS revision boots a native validator, source index, PostgreSQL projection, gateway and desktop/mobile browser with preview disabled | `real-chain-browser` CI job asserts required TOS capabilities before running the browser gate |
+| Node-independent release closure | Production configuration, gateway boundaries, projection contracts and browser behavior are verified without compiling or booting a TOS node | `pnpm production:validate`, `pnpm check`, `pnpm test:e2e` and the PostgreSQL integration/recovery/scale gates run in CI |
 | Production configuration | Explicit mainnet/testnet label, canonical HTTPS origin, preview disabled, private upstreams and non-development PostgreSQL credentials | `pnpm production:validate` runs in CI and is required before a production build |
 | Deployment smoke | Gateway liveness, ordinary and `/assets/*` SPA fallbacks, explorer status, security headers and negative tests for mutation/operator routes | `TOSCAN_SMOKE_ORIGIN=https://… pnpm production:smoke` |
-| Superseded-run control | New commits cancel obsolete CI/security runs on the same ref | Workflow concurrency groups prevent stale native builds from consuming the release queue |
+| Superseded-run control | New commits cancel obsolete CI/security runs on the same ref | Workflow concurrency groups prevent stale runs from consuming the release queue |
 
 ## P1 — production hardening
 
@@ -20,7 +20,7 @@ This document is the acceptance contract for the chain-authority closure (P0), p
 | Fail-closed health | `/healthz`, projection-aware `/readyz`, source health, lag and stale-cycle thresholds | Query integration tests and production container health checks |
 | Operations telemetry | Prometheus counters, gauges and bounded-cardinality latency/cycle histograms; six alert rules; provisioned Grafana dashboard | Official `promtool` configuration/rule validation; `compose.monitoring.yaml` |
 | Supply-chain security | Production dependency audit, CycloneDX SBOM, filesystem/image scanning, signed GHCR digests, BuildKit provenance and GitHub attestations | `.github/workflows/security.yml` and `.github/workflows/release.yml`; both runtime images contain no known fixed High/Critical findings at acceptance time |
-| Real-network browser coverage | Desktop and Pixel 7 projects with preview disabled, overflow checks and validator/pool/analytics journeys | `pnpm test:e2e:real-chain`, called by the pinned native-chain CI gate after P0 capabilities pass |
+| On-demand real-network browser coverage | Desktop and Pixel 7 projects with preview disabled, overflow checks and validator/pool/analytics journeys | `pnpm test:e2e:real-chain` is invoked explicitly for node/indexer/API compatibility work and is not part of GitHub workflows |
 | Production discoverability | Per-route titles/descriptions/canonical links, Open Graph/Twitter metadata, manifest, robots policy and build-generated sitemap | Production build emits `sitemap.xml`; browser journeys assert route canonical metadata |
 | Frontend diagnostics | Browser-local bounded error/rejection/LCP/CLS records with no automatic network export | `/diagnostics`; diagnostics are capped at 100 and clearable on device |
 
@@ -55,4 +55,4 @@ docker compose build
 TOSCAN_SMOKE_ORIGIN=https://… pnpm production:smoke
 ```
 
-For a release candidate, the native-chain CI job must also pass with preview disabled. Promotion uses signed image digests only after projection readiness is green and the browser resolves recent real-chain block, transaction, validator and Nominator Pool evidence.
+The repository release gate is deterministic and node-independent. Promotion uses signed image digests only after the target deployment reports acceptable projection readiness and `pnpm production:smoke` confirms that recent block, transaction and seeded-address evidence resolves. Run the on-demand real-chain browser journey when the node/indexer/API contract changes; it does not block unrelated application pull requests or image builds.

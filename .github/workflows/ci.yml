@@ -12,17 +12,14 @@ concurrency:
   group: toscan-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  # The TOS revision this repository's release gate is verified against.
-  # Bumping it is a decision about what the gate means, so it is made here,
-  # once, in the open -- not implied by whatever TOS happened to merge.
-  # Must be a full 40-character SHA: actions/checkout treats a short one as a
-  # branch name and fetches a ref pattern that matches nothing.
-  TOS_REF: d53f1f66af9b98031f74b04765104e4be0795cba
+# CI is deliberately node-independent. Native TOS builds and real-network
+# interaction belong to the TOS repository or an explicitly invoked local /
+# deployment smoke test, not to TOSCAN pull-request and release gates.
 
 jobs:
   quality:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -56,6 +53,7 @@ jobs:
 
   container:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -77,6 +75,7 @@ jobs:
 
   postgres-projection:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:17-alpine
@@ -143,114 +142,3 @@ jobs:
           QUERY_SCALE_ROWS: "1000000"
           QUERY_SCALE_P95_MS: "1000"
         run: pnpm test:query:scale
-
-  real-chain-browser:
-    runs-on: ubuntu-24.04
-    # A cold build of the TOS node on a two-core runner is most of this job.
-    # Forty minutes was not enough for one, which is why the gate had never
-    # actually run to completion -- it was cancelled mid-build and read as
-    # "still running" rather than as a budget that never fit.
-    timeout-minutes: 120
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: toscan
-          POSTGRES_PASSWORD: toscan-ci
-          POSTGRES_DB: toscan_real_chain
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U toscan -d toscan_real_chain"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 20
-    steps:
-      - uses: actions/checkout@v4
-      # Pinned rather than tracking the default branch. This job is a release
-      # gate, and a gate whose subject can change without anyone deciding is not
-      # a gate -- a push to TOS would silently redefine what "passing" means
-      # here. Bump this deliberately, together with the capability requirements
-      # asserted below.
-      - uses: actions/checkout@v4
-        with:
-          repository: tosnetwork/tos
-          ref: ${{ env.TOS_REF }}
-          path: tos
-      - name: Install native build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build libjemalloc-dev
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: tos/tosctl/src -> target
-      - uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9.15.4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Prepare TOS and TOSCAN dependencies
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm exec playwright install --with-deps chromium
-          cd tos
-          uv python install 3.14
-          uv sync --no-dev
-          uv run test/tostester/generate_tl.py
-      # Pinning TOS_REF is what makes this cacheable: the build inputs are now
-      # fixed, so every run after the first for a given pin restores instead of
-      # rebuilding. While the gate tracked a moving branch there was nothing
-      # stable to key on.
-      - name: Cache the native TOS build
-        uses: actions/cache@v4
-        with:
-          path: |
-            tos/build
-            ~/.cache/ccache
-          key: tos-native-${{ runner.os }}-${{ env.TOS_REF }}
-          restore-keys: |
-            tos-native-${{ runner.os }}-
-      - name: Build native localnet, JSON-RPC and explorer
-        working-directory: tos
-        run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --target validator-engine dht-server create-state generate-random-id toslibjson -j2
-          cargo build --manifest-path tosctl/src/Cargo.toml -p tosctl --locked
-      # Asked before the twenty-minute gate rather than discovered inside it.
-      # A TOS revision without these answers with a version mismatch naming the
-      # missing capability; without this step it answers with an argparse error
-      # about an unrecognized argument, which reads like a mistake in this
-      # workflow rather than in what it checked out.
-      - name: Assert the pinned TOS provides what this gate needs
-        working-directory: tos
-        run: >-
-          uv run python scripts/toscan-explorer-e2e.py
-          --require browser-command
-          --require staking-projection
-          --require validator-set-decoding
-          --require effective-stake-cap
-          --capabilities
-      - name: Real-chain browser release gate
-        working-directory: tos
-        env:
-          DATABASE_URL: postgresql://toscan:toscan-ci@127.0.0.1:5432/toscan_real_chain
-        run: >-
-          uv run python scripts/toscan-explorer-e2e.py
-          --require browser-command
-          --require staking-projection
-          --require effective-stake-cap
-          --browser-command "cd .. && python3 scripts/real-chain-browser-gate.py"
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: real-chain-browser-logs
-          path: |
-            tos/test/integration/.toscan-explorer-e2e/*.log
-            playwright-report/
-          retention-days: 7

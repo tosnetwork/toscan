@@ -11,7 +11,7 @@ test("explores chain and AI-economy entities through deterministic routes", asyn
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /See what the TOS Network can prove/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The TOS Network Explorer", exact: true })).toBeVisible();
   await expect(page.getByText("Preview data", { exact: false })).toBeVisible();
 
   await page.goto("/blocks");

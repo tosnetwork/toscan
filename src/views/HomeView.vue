@@ -20,9 +20,7 @@ const { t } = useLocale();
   <section class="home-hero">
     <div class="hero-orbit hero-orbit--one"></div><div class="hero-orbit hero-orbit--two"></div>
     <div class="container hero-content">
-      <p class="eyebrow">{{ t('TOS Network Explorer') }}</p>
-      <h1>{{ t('See what the TOS Network can prove.') }}</h1>
-      <p class="hero-copy">{{ t('Blocks, value and autonomous work — one clear view of the chain humans and AI use together.') }}</p>
+      <h1>{{ t('The TOS Network Explorer') }}</h1>
       <GlobalSearch hero />
       <div class="search-hints"><span>{{ t('Try a masterchain seqno') }}</span><code>4281904</code><span>{{ t('or a TOS address') }}</span></div>
     </div>

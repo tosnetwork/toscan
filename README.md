@@ -167,9 +167,9 @@ docker build -t toscan:verify .
 docker build -f Dockerfile.query -t toscan-query:verify .
 ```
 
-CI enforces linting, TypeScript checks, unit tests, ordered PostgreSQL migration/integration tests, deterministic reopen/failover recovery, a one-million-transaction keyset/latency gate, the production build, desktop/mobile browser journeys, serious/critical accessibility checks and production container builds. Separate security gates reject high-severity production dependency advisories, generate a CycloneDX SBOM and scan the filesystem and both images. Tagged releases publish provenance-bearing images, sign their immutable digests with GitHub OIDC and attach GitHub build attestations.
+CI is deliberately independent of a running TOS node. It enforces linting, TypeScript checks, unit tests, ordered PostgreSQL migration/integration tests, deterministic reopen/failover recovery, a one-million-transaction keyset/latency gate, the production build, desktop/mobile browser journeys, serious/critical accessibility checks and production container builds. Separate security gates reject high-severity production dependency advisories, generate a CycloneDX SBOM and scan the filesystem and both images. Tagged releases publish provenance-bearing images, sign their immutable digests with GitHub OIDC and attach GitHub build attestations.
 
-The real-chain browser gate builds and boots a native validator, deploys all five Agent Economy contracts and a funded Nominator Pool, catches PostgreSQL up to zero lag, then drives the Vue UI through execution, message paths, economy, validators and staking with preview disabled. The TOS data-path gate also verifies route isolation, decoded validator configuration, Elector reward delivery, code-hash pool discovery and durable explorer restart recovery.
+Real-chain validation remains available as an explicit local or deployment-stage exercise through `pnpm test:e2e:real-chain` and `scripts/real-chain-browser-gate.py`. It is useful when a TOS node, indexer or API contract changes, but it is not part of pull-request, main-branch or image-release workflows; those workflows never compile or boot a native node.
 
 The interface includes a skip link, semantic navigation and tables, keyboard search (`/`), visible focus states, responsive layouts, reduced-motion handling and persistent light/dark/system themes.
 
