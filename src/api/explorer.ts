@@ -716,9 +716,10 @@ export async function getProjectedValidators(): Promise<ValidatorDashboard> {
 }
 
 export async function getValidatorDetail(publicKey: string): Promise<ValidatorDetail> {
+  const routeKey = publicKey.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   return withPreview(
     () => serviceApi.get<{ ok: boolean; result: ValidatorDetail }>(
-      `/explorer/validators/${encodeURIComponent(publicKey)}`,
+      `/explorer/validators/${encodeURIComponent(routeKey)}`,
     ).then((value) => value.result),
     async () => {
       const current = await getProjectedValidators();

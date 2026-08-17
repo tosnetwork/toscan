@@ -14,6 +14,7 @@ import {
   filterAndSortValidators,
   formatRemaining,
   validatorRoundProgress,
+  validatorRouteKey,
   validatorRows,
   type ValidatorSort,
 } from "@/utils/validators";
@@ -133,12 +134,12 @@ async function moveSetFocus(kind: "current" | "next"): Promise<void> {
                 <tbody>
                   <tr v-for="row in visibleRows" :key="row.public_key">
                     <td><span class="validator-rank">{{ row.rank }}</span></td>
-                    <td><RouterLink class="mono validator-table-link" :to="{ name: 'validator', params: { publicKey: row.public_key } }">{{ compact(row.public_key, 16, 12) }}</RouterLink><small class="validator-cell-note">Proof-extracted public key</small></td>
+                    <td><RouterLink class="mono validator-table-link" :to="{ name: 'validator', params: { publicKey: validatorRouteKey(row.public_key) } }">{{ compact(row.public_key, 16, 12) }}</RouterLink><small class="validator-cell-note">Proof-extracted public key</small></td>
                     <td class="mono">{{ compact(row.adnl_address, 12, 10) }}</td>
                     <td><StatusBadge :status="row.masterchain ? 'active' : 'shard'" /></td>
                     <td class="mono">{{ formatInteger(row.weight) }}</td>
                     <td><strong>{{ ratioPercent(row.weight, activeSet?.total_weight ?? '0').toFixed(2) }}%</strong></td>
-                    <td><div class="validator-row-actions"><CopyButton :value="row.public_key" label="validator public key" /><RouterLink :to="{ name: 'validator', params: { publicKey: row.public_key } }" :aria-label="`Open validator ${row.rank}`"><AppIcon name="chevron" :size="17" /></RouterLink></div></td>
+                    <td><div class="validator-row-actions"><CopyButton :value="row.public_key" label="validator public key" /><RouterLink :to="{ name: 'validator', params: { publicKey: validatorRouteKey(row.public_key) } }" :aria-label="`Open validator ${row.rank}`"><AppIcon name="chevron" :size="17" /></RouterLink></div></td>
                   </tr>
                   <tr v-if="!visibleRows.length"><td colspan="7" class="inline-empty">{{ activeSet ? 'No validators match this search.' : 'No validator set has been published.' }}</td></tr>
                 </tbody>

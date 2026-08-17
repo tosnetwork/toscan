@@ -15,8 +15,15 @@ export function useAsyncData<T>(
   const error = ref<string | null>(null);
   let request = 0;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function clearRetry() {
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = undefined;
+  }
 
   async function load(silent = false) {
+    clearRetry();
     const current = ++request;
     if (!silent || data.value === null) loading.value = true;
     error.value = null;
@@ -27,6 +34,9 @@ export function useAsyncData<T>(
       if (current === request) {
         error.value = reason instanceof Error ? reason.message : "Something went wrong";
         recordClientDiagnostic({ type: "error", name: "Data load", detail: error.value });
+        retryTimer = setTimeout(() => {
+          if (document.visibilityState === "visible") void load(false);
+        }, 2_000);
       }
     } finally {
       if (current === request) loading.value = false;
@@ -50,6 +60,7 @@ export function useAsyncData<T>(
   });
   onBeforeUnmount(() => {
     if (timer) clearInterval(timer);
+    clearRetry();
     document.removeEventListener("visibilitychange", poll);
     request += 1;
   });

@@ -194,7 +194,7 @@ suite("PostgreSQL projection", () => {
       status: "active", deadline: null, last_seqno: 21, updated_at: 1_700_001_100,
       data: { ...poolData, total_balance_at_risk: "7100000000" },
     }]);
-    const publicKey = "validator-public-key-proof";
+    const publicKey = Buffer.alloc(32, 0xff).toString("base64");
     const nextPublicKey = "validator-next-only-proof";
     for (const seqno of [500, 501]) {
       await db.recordValidatorSet({
@@ -244,6 +244,11 @@ suite("PostgreSQL projection", () => {
       effective_stake: { max_stake_factor: 1, surplus_earns: false },
       history: [{ observed_mc_seqno: 501, selection_phase: "current" }, { observed_mc_seqno: 500 }],
     });
+    const routeSafeValidator = await app.inject(
+      `/explorer/validators/${publicKey.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`,
+    );
+    expect(routeSafeValidator.statusCode).toBe(200);
+    expect(routeSafeValidator.json().result.public_key).toBe(publicKey);
     const nextValidator = await app.inject(`/explorer/validators/${encodeURIComponent(nextPublicKey)}`);
     expect(nextValidator.statusCode).toBe(200);
     expect(nextValidator.json().result).toMatchObject({

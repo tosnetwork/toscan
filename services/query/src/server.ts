@@ -71,6 +71,12 @@ function hashCandidates(raw: string): string[] {
   return [...new Set(candidates)];
 }
 
+function canonicalValidatorPublicKey(value: string): string {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(value)) return value;
+  const decoded = Buffer.from(value, "base64url");
+  return decoded.length === 32 ? decoded.toString("base64") : value;
+}
+
 function transaction(row: QueryResultRow): Record<string, unknown> {
   return {
     hash: row.hash,
@@ -459,7 +465,7 @@ export function buildServer(
   });
 
   app.get<{ Params: { publicKey: string } }>("/explorer/validators/:publicKey", async (request, reply) => {
-    const publicKey = request.params.publicKey;
+    const publicKey = canonicalValidatorPublicKey(request.params.publicKey);
     if (!/^[A-Za-z0-9_+\-/=]{8,256}$/.test(publicKey)) {
       throw Object.assign(new Error("invalid validator public key"), { statusCode: 400 });
     }

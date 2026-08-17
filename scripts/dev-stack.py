@@ -220,6 +220,12 @@ def start(args):
     wait_ready("node", 150)
 
     config_path = generate_explorer_config()
+    # `tosctl explorer` is a long-running process. Rebuilding the binary does
+    # not change an already running process, so explicitly recycle only this
+    # read-side service when --build is requested. Chain/node state stays live.
+    if args.build and "explorer" in processes:
+        terminate_process("explorer", processes.pop("explorer"))
+        write_processes(processes)
     if "explorer" in processes and not service_ready("explorer"):
         terminate_process("explorer", processes.pop("explorer"))
         write_processes(processes)

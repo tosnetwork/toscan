@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ValidatorSetConfig } from "@/api/types";
-import { filterAndSortValidators, formatRemaining, validatorRoundProgress, validatorRows } from "./validators";
+import {
+  filterAndSortValidators,
+  formatRemaining,
+  validatorRoundProgress,
+  validatorRouteKey,
+  validatorRows,
+} from "./validators";
 
 const set: ValidatorSetConfig = {
   utime_since: 100,
@@ -34,5 +40,12 @@ describe("validator list helpers", () => {
     expect(validatorRoundProgress(100, 200, 250)).toBe(100);
     expect(formatRemaining(93_900)).toBe("1d 2h");
     expect(formatRemaining(5_460)).toBe("1h 31m");
+  });
+
+  it("makes standard Base64 validator identities safe for URL path segments", () => {
+    expect(validatorRouteKey("slxHCXmjaQXlf7idYv/PTPDRDdjGcDJ7Tl/doiGHRbk=")).toBe(
+      "slxHCXmjaQXlf7idYv_PTPDRDdjGcDJ7Tl_doiGHRbk",
+    );
+    expect(validatorRouteKey("preview-validator-1")).toBe("preview-validator-1");
   });
 });

@@ -7,6 +7,16 @@ export type ValidatorRow = ValidatorSetConfig["validators"][number] & {
   masterchain: boolean;
 };
 
+/**
+ * Put a proof-extracted 32-byte validator key into a path-safe form.
+ * Standard Base64 keys can contain `/`; reverse proxies commonly decode that
+ * escape before routing and accidentally turn one identity into many segments.
+ */
+export function validatorRouteKey(publicKey: string): string {
+  if (!/^[A-Za-z0-9+/]{43}=?$/.test(publicKey)) return publicKey;
+  return publicKey.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 export function validatorRows(set: ValidatorSetConfig | null | undefined): ValidatorRow[] {
   return (set?.validators ?? []).map((validator, index) => ({
     ...validator,
