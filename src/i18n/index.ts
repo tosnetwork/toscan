@@ -21,7 +21,8 @@ const locale = ref<Locale>(initialLocale());
 if (typeof document !== "undefined") document.documentElement.lang = locale.value;
 
 const zh: Record<string, string> = {
-  "Blocks": "区块", "Transactions": "交易", "Assets": "资产", "Agents": "Agent", "Tasks": "任务",
+  "Home": "首页", "Blockchain": "区块链", "Agent Economy": "Agent 经济", "Consensus": "共识", "Insights": "洞察",
+  "Blocks": "区块", "Transactions": "交易", "Assets": "资产", "Agents": "Agent", "Tasks": "任务", "Disputes": "争议",
   "Services": "服务", "Economy": "经济", "Staking": "质押", "Network": "网络", "Analytics": "分析",
   "Validators": "验证人", "Governance": "治理", "Address": "地址", "Message": "消息", "Transaction": "交易",
   "Validator": "验证人", "Nominator Pool": "提名池", "Network analytics": "网络分析", "Agent economy": "Agent 经济",
@@ -36,7 +37,11 @@ const zh: Record<string, string> = {
   "Loading verified network data…": "正在加载已验证的网络数据…", "Unable to load this view": "无法加载此页面",
   "Nothing here yet": "暂时没有数据", "No indexed records match this view.": "没有符合当前视图的索引记录。",
   "Previous": "上一页", "Next": "下一页", "Skip to content": "跳到主要内容", "Source": "源代码",
-  "Network status": "网络状态", "Open-source explorer for TOS Network": "TOS Network 开源浏览器",
+  "Network status": "网络状态", "Open-source explorer for TOS Network": "TOS Network 开源浏览器", "Live network": "网络运行中",
+  "Read-only chain evidence": "只读链上证据", "Back to top": "返回顶部", "Network & consensus": "网络与共识", "Chain data": "链上数据",
+  "Chain facts for people and autonomous agents.": "服务于人类与自主 Agent 的链上事实。",
+  "Read-only by design. Every claim stays inside the available evidence.": "只读设计，所有结论均严格限定于现有证据。",
+  "Open source": "开源", "Read only": "只读",
   "Search address, transaction, message, block or seqno": "搜索地址、交易、消息、区块或序号", "Explore": "浏览",
   "Finalized blocks across all indexed shards, newest first.": "按时间倒序查看所有已索引分片中的最终区块。",
   "Recent account state changes observed in finalized blocks.": "查看最终区块中的近期账户状态变化。",
@@ -58,7 +63,8 @@ const zh: Record<string, string> = {
 };
 
 const ja: Record<string, string> = {
-  "Blocks": "ブロック", "Transactions": "トランザクション", "Assets": "資産", "Agents": "エージェント", "Tasks": "タスク",
+  "Home": "ホーム", "Blockchain": "ブロックチェーン", "Agent Economy": "エージェント経済", "Consensus": "コンセンサス", "Insights": "インサイト",
+  "Blocks": "ブロック", "Transactions": "トランザクション", "Assets": "資産", "Agents": "エージェント", "Tasks": "タスク", "Disputes": "紛争",
   "Services": "サービス", "Economy": "経済", "Staking": "ステーキング", "Network": "ネットワーク", "Analytics": "分析",
   "Validators": "バリデータ", "Governance": "ガバナンス", "Address": "アドレス", "Message": "メッセージ", "Transaction": "トランザクション",
   "Validator": "バリデータ", "Nominator Pool": "ノミネータープール", "Network analytics": "ネットワーク分析", "Agent economy": "エージェント経済",
@@ -73,7 +79,11 @@ const ja: Record<string, string> = {
   "Loading verified network data…": "検証済みネットワークデータを読み込み中…", "Unable to load this view": "この画面を読み込めません",
   "Nothing here yet": "まだデータがありません", "No indexed records match this view.": "この条件に一致する索引レコードはありません。",
   "Previous": "前へ", "Next": "次へ", "Skip to content": "本文へ移動", "Source": "ソース",
-  "Network status": "ネットワーク状態", "Open-source explorer for TOS Network": "TOS Network のオープンソース・エクスプローラー",
+  "Network status": "ネットワーク状態", "Open-source explorer for TOS Network": "TOS Network のオープンソース・エクスプローラー", "Live network": "ネットワーク稼働中",
+  "Read-only chain evidence": "読み取り専用のチェーン証拠", "Back to top": "ページ上部へ", "Network & consensus": "ネットワークとコンセンサス", "Chain data": "チェーンデータ",
+  "Chain facts for people and autonomous agents.": "人と自律エージェントのためのチェーン上の事実。",
+  "Read-only by design. Every claim stays inside the available evidence.": "読み取り専用設計。すべての表示は利用可能な証拠の範囲内です。",
+  "Open source": "オープンソース", "Read only": "読み取り専用",
   "Search address, transaction, message, block or seqno": "アドレス、トランザクション、メッセージ、ブロックを検索", "Explore": "検索",
   "Finalized blocks across all indexed shards, newest first.": "索引済み全シャードの確定ブロックを新しい順に表示します。",
   "Recent account state changes observed in finalized blocks.": "確定ブロックで観測された最近のアカウント変更。",

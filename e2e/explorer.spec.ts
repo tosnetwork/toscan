@@ -115,6 +115,36 @@ test("global search and keyboard shortcut resolve canonical identities", async (
   await expect(page.getByRole("heading", { name: "Address" })).toBeVisible();
 });
 
+test("grouped navigation and the expanded footer keep every product area discoverable", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/blocks");
+
+  const primary = page.getByRole("navigation", { name: "Primary navigation" });
+  await expect(primary).toBeVisible();
+  await expect(primary.getByRole("link", { name: "Home", exact: true })).toBeVisible();
+  const blockchainMenu = primary.getByRole("button", { name: "Blockchain", exact: true });
+  await blockchainMenu.click();
+  await expect(primary.getByRole("link", { name: /^Transactions/ })).toBeVisible();
+  await primary.getByRole("link", { name: /^Transactions/ }).click();
+  await expect(page).toHaveURL(/\/transactions$/);
+
+  const footer = page.locator(".site-footer");
+  await footer.scrollIntoViewIfNeeded();
+  await expect(footer.getByRole("heading", { name: "Chain data", exact: true })).toBeVisible();
+  await expect(footer.getByRole("heading", { name: "Agent Economy", exact: true })).toBeVisible();
+  await expect(footer.getByRole("heading", { name: "Network & consensus", exact: true })).toBeVisible();
+  await footer.getByRole("button", { name: "Back to top" }).click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(2);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Toggle navigation" }).click();
+  const mobile = page.getByRole("navigation", { name: "Mobile navigation" });
+  await expect(mobile).toBeVisible();
+  await expect(mobile.getByRole("heading", { name: "Consensus" })).toBeVisible();
+  await mobile.getByRole("link", { name: "Staking", exact: true }).click();
+  await expect(page).toHaveURL(/\/staking$/);
+});
+
 test("primary public routes have no serious or critical accessibility violations", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One desktop accessibility pass covers the shared DOM.");
   const routes = ["/", "/blocks", "/transactions", "/assets", "/agents", "/tasks", "/disputes", "/services", "/economy", "/network", "/analytics", "/validators", "/validator/preview-validator-1", "/staking", `/staking/pool/${previewPool}`, "/governance"];
