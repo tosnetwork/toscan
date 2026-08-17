@@ -14,7 +14,7 @@ env:
   # once, in the open -- not implied by whatever TOS happened to merge.
   # Must be a full 40-character SHA: actions/checkout treats a short one as a
   # branch name and fetches a ref pattern that matches nothing.
-  TOS_REF: ef15b406b0571205e7793a353faf2000bdfec866
+  TOS_REF: d53f1f66af9b98031f74b04765104e4be0795cba
 
 jobs:
   quality:
@@ -93,7 +93,11 @@ jobs:
 
   real-chain-browser:
     runs-on: ubuntu-24.04
-    timeout-minutes: 40
+    # A cold build of the TOS node on a two-core runner is most of this job.
+    # Forty minutes was not enough for one, which is why the gate had never
+    # actually run to completion -- it was cancelled mid-build and read as
+    # "still running" rather than as a budget that never fit.
+    timeout-minutes: 120
     services:
       postgres:
         image: postgres:17-alpine
@@ -146,6 +150,19 @@ jobs:
           uv python install 3.14
           uv sync --no-dev
           uv run test/tostester/generate_tl.py
+      # Pinning TOS_REF is what makes this cacheable: the build inputs are now
+      # fixed, so every run after the first for a given pin restores instead of
+      # rebuilding. While the gate tracked a moving branch there was nothing
+      # stable to key on.
+      - name: Cache the native TOS build
+        uses: actions/cache@v4
+        with:
+          path: |
+            tos/build
+            ~/.cache/ccache
+          key: tos-native-${{ runner.os }}-${{ env.TOS_REF }}
+          restore-keys: |
+            tos-native-${{ runner.os }}-
       - name: Build native localnet, JSON-RPC and explorer
         working-directory: tos
         run: |
