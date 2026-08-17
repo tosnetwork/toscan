@@ -10,6 +10,14 @@ interface RpcFailure {
   error: { code: number; message: string; data?: unknown };
 }
 
+interface RestFailure {
+  jsonrpc?: "2.0";
+  id?: number | null;
+  ok?: false;
+  error: string;
+  code: number;
+}
+
 export class RpcError extends Error {
   constructor(
     message: string,
@@ -30,6 +38,7 @@ export class TransportError extends Error {
 
 export interface JsonRpcClientOptions {
   endpoint: string;
+  transport?: "json-rpc" | "rest";
   timeout?: number;
   fetch?: typeof globalThis.fetch;
 }
@@ -47,20 +56,26 @@ export class JsonRpcClient {
     const timeout = setTimeout(() => controller.abort(), this.options.timeout ?? 12_000);
 
     try {
-      const response = await this.fetcher(this.options.endpoint, {
+      const rest = this.options.transport === "rest";
+      const response = await this.fetcher(rest
+        ? `${this.options.endpoint.replace(/\/$/, "")}/${encodeURIComponent(method)}`
+        : this.options.endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: ++this.requestId, method, params }),
+        body: JSON.stringify(rest ? params : { jsonrpc: "2.0", id: ++this.requestId, method, params }),
         signal: controller.signal,
       });
       const text = await response.text();
-      let payload: RpcSuccess<T> | RpcFailure;
+      let payload: RpcSuccess<T> | RpcFailure | RestFailure;
       try {
-        payload = JSON.parse(text) as RpcSuccess<T> | RpcFailure;
+        payload = JSON.parse(text) as RpcSuccess<T> | RpcFailure | RestFailure;
       } catch (error) {
         throw new TransportError(`TOS RPC returned an invalid response (${response.status})`, error);
       }
       if ("error" in payload) {
+        if (typeof payload.error === "string") {
+          throw new RpcError(payload.error, "code" in payload ? payload.code : -32603);
+        }
         throw new RpcError(payload.error.message, payload.error.code, payload.error.data);
       }
       if (!response.ok) {

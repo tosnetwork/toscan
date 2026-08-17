@@ -2,11 +2,19 @@ import { ref } from "vue";
 
 export type Theme = "light" | "dark" | "system";
 const theme = ref<Theme>((localStorage.getItem("toscan-theme") as Theme | null) ?? "system");
+const colorScheme = matchMedia("(prefers-color-scheme: dark)");
 
 function applyTheme(value: Theme) {
-  const dark = value === "dark" || (value === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const dark = value === "dark" || (value === "system" && colorScheme.matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#111315" : "#eceef0");
+}
+
+export function initializeTheme() {
+  applyTheme(theme.value);
+  colorScheme.addEventListener("change", () => {
+    if (theme.value === "system") applyTheme("system");
+  });
 }
 
 export function useTheme() {

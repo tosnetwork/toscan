@@ -1,23 +1,54 @@
-import { onMounted, ref, watch, type Ref } from "vue";
+import { onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
 
-export function useAsyncData<T>(loader: () => Promise<T>, watchSources: Ref<unknown>[] = []) {
+interface AsyncDataOptions {
+  refreshInterval?: number;
+}
+
+export function useAsyncData<T>(
+  loader: () => Promise<T>,
+  watchSources: Ref<unknown>[] = [],
+  options: AsyncDataOptions = {},
+) {
   const data = ref<T | null>(null) as Ref<T | null>;
   const loading = ref(true);
   const error = ref<string | null>(null);
+  let request = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
 
-  async function refresh() {
-    loading.value = true;
+  async function load(silent = false) {
+    const current = ++request;
+    if (!silent || data.value === null) loading.value = true;
     error.value = null;
     try {
-      data.value = await loader();
+      const next = await loader();
+      if (current === request) data.value = next;
     } catch (reason) {
-      error.value = reason instanceof Error ? reason.message : "Something went wrong";
+      if (current === request) error.value = reason instanceof Error ? reason.message : "Something went wrong";
     } finally {
-      loading.value = false;
+      if (current === request) loading.value = false;
     }
   }
 
-  onMounted(refresh);
-  if (watchSources.length) watch(watchSources, refresh);
+  async function refresh() {
+    await load(false);
+  }
+
+  function poll() {
+    if (document.visibilityState === "visible" && !loading.value) void load(true);
+  }
+
+  onMounted(() => {
+    void refresh();
+    if (options.refreshInterval && options.refreshInterval > 0) {
+      timer = setInterval(poll, options.refreshInterval);
+      document.addEventListener("visibilitychange", poll);
+    }
+  });
+  onBeforeUnmount(() => {
+    if (timer) clearInterval(timer);
+    document.removeEventListener("visibilitychange", poll);
+    request += 1;
+  });
+  if (watchSources.length) watch(watchSources, () => void refresh());
   return { data, loading, error, refresh };
 }

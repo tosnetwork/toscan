@@ -15,7 +15,10 @@ describe("resolveSearch", () => {
   });
 
   it("treats a numeric query as a masterchain sequence number", () => {
-    expect(resolveSearch("4281904")).toEqual({ name: "blocks", query: { seqno: "4281904" } });
+    expect(resolveSearch("4281904")).toEqual({
+      name: "block",
+      params: { workchain: "-1", shard: "-9223372036854775808", seqno: "4281904" },
+    });
   });
 
   it("does not pretend arbitrary text is covered by a full-history index", () => {

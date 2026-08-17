@@ -1,27 +1,38 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import BlockRows from "@/components/BlockRows.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
-import { getBlocks } from "@/api/explorer";
+import PaginationBar from "@/components/PaginationBar.vue";
+import { getBlocksPage } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
 
 const route = useRoute();
-const { data, loading, error, refresh } = useAsyncData(() => getBlocks(20));
-const target = computed(() => Number(route.query.seqno));
-const blocks = computed(() => {
-  if (!data.value || !Number.isFinite(target.value)) return data.value ?? [];
-  return [...data.value].sort((left, right) => left.seqno === target.value ? -1 : right.seqno === target.value ? 1 : 0);
-});
+const offset = ref(Math.max(0, Number(route.query.offset) || 0));
+const limit = 20;
+const { data, loading, error, refresh } = useAsyncData(
+  () => getBlocksPage(offset.value, limit),
+  [offset],
+  { refreshInterval: 10_000 },
+);
+watch(() => route.query.offset, (value) => { offset.value = Math.max(0, Number(value) || 0); });
 </script>
 
 <template>
   <div class="container page-container">
-    <PageHeading title="Blocks" description="Recent finalized masterchain blocks, newest first." eyebrow="Chain" />
+    <PageHeading title="Blocks" description="Finalized blocks across all indexed shards, newest first." eyebrow="Chain" />
     <section class="surface page-surface">
-      <div class="table-caption"><span>Masterchain</span><span>Showing the latest 20 blocks</span></div>
-      <LoadState :loading="loading" :error="error" :empty="!blocks.length" @retry="refresh"><BlockRows :blocks="blocks" /></LoadState>
+      <div class="table-caption"><span>All indexed shards</span><span>{{ data?.total?.toLocaleString() ?? "—" }} blocks</span></div>
+      <LoadState :loading="loading" :error="error" :empty="!data?.items.length" @retry="refresh"><BlockRows :blocks="data?.items ?? []" /></LoadState>
+      <PaginationBar
+        v-if="data"
+        :total="data.total"
+        :offset="data.offset"
+        :limit="data.limit"
+        :complete="data.complete"
+        @change="(value) => offset = value"
+      />
     </section>
   </div>
 </template>

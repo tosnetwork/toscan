@@ -10,7 +10,7 @@ import { useAsyncData } from "@/composables/useAsyncData";
 import { getHome } from "@/api/explorer";
 import { compact, formatInteger, formatTos } from "@/utils/format";
 
-const { data, loading, error, refresh } = useAsyncData(getHome);
+const { data, loading, error, refresh } = useAsyncData(getHome, [], { refreshInterval: 12_000 });
 const visibleTransactions = computed(() => data.value?.transactions.slice(0, 6) ?? []);
 </script>
 
@@ -32,7 +32,7 @@ const visibleTransactions = computed(() => data.value?.transactions.slice(0, 6) 
         <div><small>Latest masterchain block</small><strong>{{ formatInteger(data.blocks[0]?.seqno) }}</strong><span class="live-label"><i></i>Live tip</span></div>
         <div><small>Consensus block</small><strong>{{ formatInteger(data.consensusBlock ?? undefined) }}</strong><span>Node-reported</span></div>
         <div><small>Observed signers</small><strong>{{ formatInteger(data.signers ?? undefined) }}</strong><span>Latest proof link</span></div>
-        <div><small>Indexed AI work</small><strong>{{ formatInteger(data.tasks.length) }}</strong><span>Current window</span></div>
+        <div><small>AI work shown</small><strong>{{ formatInteger(data.tasks.length) }}</strong><span>Current page window</span></div>
       </section>
 
       <div v-if="data" class="home-grid">
@@ -63,7 +63,7 @@ const visibleTransactions = computed(() => data.value?.transactions.slice(0, 6) 
         <section class="surface">
           <header class="section-heading"><div><h2>Open work</h2><p>Task escrows discovered by the configured indexer</p></div><RouterLink to="/tasks">Tasks <AppIcon name="chevron" :size="15" /></RouterLink></header>
           <div class="mini-list">
-            <RouterLink v-for="task in data.tasks" :key="task.address" :to="{ name: 'address', params: { address: task.address } }">
+            <RouterLink v-for="task in data.tasks" :key="task.address" :to="{ name: 'task', params: { address: task.address } }">
               <span><strong>{{ task.name || "Unnamed task" }}</strong><small class="mono">{{ compact(task.address) }}</small></span>
               <span><StatusBadge :status="task.status" /><small>{{ formatTos(task.budget) }} TOS</small></span>
             </RouterLink>
@@ -73,7 +73,7 @@ const visibleTransactions = computed(() => data.value?.transactions.slice(0, 6) 
         <section class="surface">
           <header class="section-heading"><div><h2>Service activity</h2><p>AI service actors and pending calls</p></div><RouterLink to="/services">Services <AppIcon name="chevron" :size="15" /></RouterLink></header>
           <div class="mini-list">
-            <RouterLink v-for="service in data.services" :key="service.address" :to="{ name: 'address', params: { address: service.address } }">
+            <RouterLink v-for="service in data.services" :key="service.address" :to="{ name: 'service', params: { address: service.address } }">
               <span><strong class="mono">{{ compact(service.address) }}</strong><small>{{ formatTos(service.price_per_call) }} TOS per call</small></span>
               <span><StatusBadge :status="service.status" /><small>{{ service.pending_count }} pending</small></span>
             </RouterLink>

@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { compact, formatTos, statusTone } from "./format";
+import { compact, formatTos, ratioPercent, statusTone } from "./format";
 
 describe("format helpers", () => {
   it("formats base units without losing bigint precision", () => {
     expect(formatTos("2847350000000")).toBe("2,847.35");
+    expect(ratioPercent("90071992547409930", "180143985094819860")).toBe(50);
   });
 
   it("keeps short identities intact and compacts long ones", () => {

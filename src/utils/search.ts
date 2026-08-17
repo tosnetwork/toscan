@@ -1,7 +1,6 @@
 export type SearchTarget =
   | { name: "address"; params: { address: string } }
   | { name: "block"; params: { workchain: string; shard: string; seqno: string } }
-  | { name: "blocks"; query: { seqno: string } }
   | { name: "search"; query: { q: string } };
 
 const RAW_ADDRESS = /^-?\d+:[0-9a-fA-F]{64}$/;
@@ -17,6 +16,11 @@ export function resolveSearch(input: string): SearchTarget {
   if (RAW_ADDRESS.test(query) || FRIENDLY_ADDRESS.test(query)) {
     return { name: "address", params: { address: query } };
   }
-  if (/^\d+$/.test(query)) return { name: "blocks", query: { seqno: query } };
+  if (/^\d+$/.test(query)) {
+    return {
+      name: "block",
+      params: { workchain: "-1", shard: "-9223372036854775808", seqno: query },
+    };
+  }
   return { name: "search", query: { q: query } };
 }

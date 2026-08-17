@@ -3,11 +3,13 @@ import type {
   Agent,
   BlockDetail,
   BlockSummary,
+  Dispute,
   HomeData,
   Service,
   Task,
   TransactionDetail,
   TransactionSummary,
+  TokenData,
 } from "@/api/types";
 
 const now = Math.floor(Date.now() / 1000);
@@ -87,6 +89,20 @@ export const previewTasks: Task[] = [
   },
 ];
 
+export const previewDisputes: Dispute[] = [
+  {
+    address: `0:${hash(118)}`,
+    claimant: previewAddress,
+    respondent: agentAddress,
+    reviewer: `0:${hash(119)}`,
+    status: "open",
+    ruling: 0,
+    split_bps: 0,
+    deadline: now + 18_000,
+    subject_hash: hash(120),
+  },
+];
+
 export const previewServices: Service[] = [
   {
     address: serviceAddress,
@@ -130,6 +146,7 @@ export const previewAgents: Agent[] = [
     owner: previewAddress,
     controller_pubkey: hash(140),
     seqno: 184,
+    spend_day: Math.floor(now / 86_400),
     spent_today: 38_500_000_000,
     max_per_tx: 50_000_000_000,
     daily_limit: 500_000_000_000,
@@ -143,6 +160,7 @@ export const previewAgents: Agent[] = [
     owner: `0:${hash(146)}`,
     controller_pubkey: hash(147),
     seqno: 72,
+    spend_day: Math.floor(now / 86_400),
     spent_today: 12_100_000_000,
     max_per_tx: 25_000_000_000,
     daily_limit: 200_000_000_000,
@@ -196,11 +214,34 @@ export function getPreviewTransaction(account: string, lt: string, txHash: strin
     raw: {
       transaction_id: { lt: summary.lt, hash: summary.hash },
       fee: summary.fee ?? "1420000",
-      storage_fee: "210000",
-      other_fee: "1210000",
-      in_msg: { source: previewAddress, destination: summary.account, value: "125000000000" },
-      out_msgs: [{ source: summary.account, destination: serviceAddress, value: "2500000000" }],
+      in_msg: { kind: "internal", source: previewAddress, destination: summary.account, value: "125000000000" },
+      out_msgs: [{ kind: "internal", source: summary.account, destination: serviceAddress, value: "2500000000" }],
     },
+  };
+}
+
+export function getPreviewToken(address: string, hint?: string): TokenData {
+  if (hint === "nft") {
+    return {
+      "@type": "ext.tokens.nftItemData",
+      init: true,
+      index: 42,
+      collection_address: `0:${hash(166)}`,
+      owner_address: previewAddress,
+      individual_content: "te6cckEBAQEAIgAAQFByZXZpZXcgTkZUIGNvbnRlbnQgY29tbWl0bWVudA==",
+    };
+  }
+  return {
+    "@type": "ext.tokens.jettonMasterData",
+    total_supply: "1000000000000000",
+    mintable: true,
+    admin_address: previewAddress,
+    jetton_content: "te6cckEBAQEAIwAAQlByZXZpZXcgSmV0dG9uIG1ldGFkYXRh",
+    jetton_wallet_code: "te6cckEBAQEAAwAAAgA=",
+    jetton_name: address === serviceAddress ? "Service Credit" : "TOS Preview Asset",
+    jetton_symbol: address === serviceAddress ? "SRV" : "TPA",
+    jetton_decimals: "9",
+    jetton_description: "Preview metadata illustrating the node-authoritative token detail view.",
   };
 }
 
@@ -252,5 +293,7 @@ export function getPreviewAccount(address: string): AccountDetail {
     })),
     jettons: [{ jetton_master: `0:${hash(154)}`, jetton_wallet: `0:${hash(155)}`, last_lt: previewTransactions[0]!.lt }],
     nfts: [{ nft_item: `0:${hash(157)}`, collection: `0:${hash(158)}`, last_lt: previewTransactions[1]!.lt }],
+    indexedTransactions: previewTransactions.filter((transaction) => transaction.account === address),
+    indexedTransactionTotal: previewTransactions.filter((transaction) => transaction.account === address).length,
   };
 }

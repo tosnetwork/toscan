@@ -1,0 +1,62 @@
+limit_req_zone $binary_remote_addr zone=explorer_reads:10m rate=30r/s;
+
+server {
+  listen 8080;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+  charset utf-8;
+  server_tokens off;
+  client_max_body_size 64k;
+
+  add_header Content-Security-Policy "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header X-Frame-Options "DENY" always;
+  add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()" always;
+
+  location = /healthz {
+    access_log off;
+    default_type text/plain;
+    return 200 "ok\n";
+  }
+
+  # Only the node's read-only REST methods are reachable from the public UI.
+  # The upstream API key stays inside this reverse proxy.
+  location ~ ^/tos-rpc/(getMasterchainInfo|getConsensusBlock|lookupBlock|getBlockHeader|getBlockTransactions|getBlockTransactionsExt|getMasterchainBlockSignatures|getTransactions|getAddressInformation|getAccountCapability|getAccountAgents|getAccountEvents|getAccountJettons|getAccountNfts|getTokenData)$ {
+    limit_except POST { deny all; }
+    limit_req zone=explorer_reads burst=60 nodelay;
+    rewrite ^/tos-rpc/(.*)$ /$1 break;
+    proxy_pass ${TOS_RPC_UPSTREAM};
+    proxy_set_header X-API-Key "${TOS_RPC_API_KEY}";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 15s;
+    proxy_hide_header Access-Control-Allow-Origin;
+  }
+
+  location ^~ /tos-service-api/explorer/ {
+    limit_except GET { deny all; }
+    limit_req zone=explorer_reads burst=60 nodelay;
+    rewrite ^/tos-service-api/(.*)$ /$1 break;
+    proxy_pass ${TOS_SERVICE_UPSTREAM};
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 15s;
+  }
+
+  location /tos-rpc/ { return 404; }
+  location ^~ /tos-service-api/ { return 404; }
+
+  location /assets/ {
+    try_files $uri =404;
+    expires 1y;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+    expires -1;
+  }
+}

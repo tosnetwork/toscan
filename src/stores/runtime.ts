@@ -1,8 +1,9 @@
 import { readonly, ref } from "vue";
 import type { DataMode } from "@/api/types";
 
-const mode = ref<DataMode>("live");
-const lastError = ref<string | null>(null);
+const forcePreview = import.meta.env.VITE_FORCE_PREVIEW === "true";
+const mode = ref<DataMode>(forcePreview ? "preview" : "live");
+const lastError = ref<string | null>(forcePreview ? "Deterministic preview mode enabled" : null);
 
 export const runtime = {
   mode: readonly(mode),
@@ -12,6 +13,7 @@ export const runtime = {
     lastError.value = reason;
   },
   useLive() {
+    if (forcePreview) return;
     mode.value = "live";
     lastError.value = null;
   },

@@ -24,6 +24,18 @@ export function formatInteger(value: number | string | undefined): string {
   return Number.isFinite(number) ? number.toLocaleString() : String(value);
 }
 
+export function ratioPercent(value: string | number, total: string | number): number {
+  try {
+    const numerator = BigInt(value);
+    const denominator = BigInt(total);
+    if (denominator <= 0n || numerator <= 0n) return 0;
+    return Number((numerator * 10_000n) / denominator) / 100;
+  } catch {
+    const denominator = Number(total);
+    return denominator > 0 ? Number(value) / denominator * 100 : 0;
+  }
+}
+
 export function formatDate(unixSeconds?: number): string {
   if (!unixSeconds) return "—";
   return new Intl.DateTimeFormat("en-US", {

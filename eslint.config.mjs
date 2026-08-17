@@ -1,12 +1,17 @@
 import eslint from "@eslint/js";
 import vue from "eslint-plugin-vue";
 import { defineConfigWithVueTs, vueTsConfigs } from "@vue/eslint-config-typescript";
+import globals from "globals";
 
 export default defineConfigWithVueTs(
-  { ignores: ["dist/**", "node_modules/**"] },
+  { ignores: ["dist/**", "services/query/dist/**", "node_modules/**"] },
   eslint.configs.recommended,
   ...vue.configs["flat/recommended"],
   vueTsConfigs.recommended,
+  {
+    files: ["services/query/**/*.ts"],
+    languageOptions: { globals: globals.node },
+  },
   {
     rules: {
       "vue/multi-word-component-names": "off",

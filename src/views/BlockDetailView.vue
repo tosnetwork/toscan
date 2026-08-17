@@ -1,26 +1,43 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import AppIcon from "@/components/AppIcon.vue";
 import CopyButton from "@/components/CopyButton.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
+import PaginationBar from "@/components/PaginationBar.vue";
 import TransactionRows from "@/components/TransactionRows.vue";
-import { getBlock } from "@/api/explorer";
+import { getBlock, getBlockTransactionsPage } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { compact, formatDate, formatInteger } from "@/utils/format";
 
 const route = useRoute();
 const identity = computed(() => `${route.params.workchain}:${route.params.shard}:${route.params.seqno}`);
+const chainLabel = computed(() => Number(route.params.workchain) === -1 ? "Masterchain" : `Workchain ${route.params.workchain}`);
 const { data, loading, error, refresh } = useAsyncData(() => getBlock(
   Number(route.params.workchain), String(route.params.shard), Number(route.params.seqno),
 ), [identity]);
+const transactionOffset = ref(0);
+const transactionLimit = 50;
+const {
+  data: transactionPage,
+  loading: transactionsLoading,
+  error: transactionsError,
+  refresh: refreshTransactions,
+} = useAsyncData(() => getBlockTransactionsPage(
+  Number(route.params.workchain),
+  String(route.params.shard),
+  Number(route.params.seqno),
+  transactionOffset.value,
+  transactionLimit,
+), [identity, transactionOffset]);
+watch(identity, () => { transactionOffset.value = 0; });
 </script>
 
 <template>
   <div class="container page-container">
     <nav class="breadcrumbs" aria-label="Breadcrumb"><RouterLink to="/blocks">Blocks</RouterLink><AppIcon name="chevron" :size="13" /><span>#{{ formatInteger(Number(route.params.seqno)) }}</span></nav>
-    <PageHeading :title="`Block ${formatInteger(Number(route.params.seqno))}`" description="Finalized masterchain block and its indexed transactions." eyebrow="Masterchain">
+    <PageHeading :title="`Block ${formatInteger(Number(route.params.seqno))}`" description="Finalized block and its indexed transactions." :eyebrow="chainLabel">
       <span v-if="data" class="status-badge" data-tone="positive">Finalized</span>
     </PageHeading>
     <LoadState :loading="loading" :error="error" @retry="refresh">
@@ -31,7 +48,7 @@ const { data, loading, error, refresh } = useAsyncData(() => getBlock(
             <dl class="detail-list">
               <div><dt>Sequence number</dt><dd>{{ formatInteger(data.summary.seqno) }}</dd></div>
               <div><dt>Generated</dt><dd>{{ formatDate(data.summary.time) }}</dd></div>
-              <div><dt>Transactions loaded</dt><dd>{{ data.transactions.length }}<small v-if="data.summary.incomplete || data.transactions.length < data.summary.txCount"> of {{ data.summary.txCount }} reported</small></dd></div>
+              <div><dt>Transactions</dt><dd>{{ transactionPage?.total ?? data.summary.txCount }}</dd></div>
               <div><dt>Workchain</dt><dd>{{ data.summary.workchain }}</dd></div>
               <div><dt>Shard</dt><dd class="mono">{{ data.summary.shard }}</dd></div>
               <div><dt>Logical time</dt><dd class="mono">{{ data.header.start_lt }} → {{ data.header.end_lt }}</dd></div>
@@ -53,9 +70,18 @@ const { data, loading, error, refresh } = useAsyncData(() => getBlock(
           </div>
         </section>
         <section class="surface page-surface detail-transactions">
-          <header class="section-heading"><div><h2>Transactions</h2><p>{{ data.summary.incomplete || data.transactions.length < data.summary.txCount ? "A bounded sample returned for this block" : "All records returned for this block" }}</p></div><span>{{ data.transactions.length }} loaded</span></header>
-          <TransactionRows v-if="data.transactions.length" :transactions="data.transactions" />
-          <p v-else class="inline-empty">No transactions were returned for this block.</p>
+          <header class="section-heading"><div><h2>Transactions</h2><p>{{ transactionPage?.complete === false ? "A bounded node window" : "Complete indexed block history" }}</p></div><span>{{ transactionPage?.total ?? 0 }} indexed</span></header>
+          <LoadState :loading="transactionsLoading" :error="transactionsError" :empty="!transactionPage?.items.length" @retry="refreshTransactions">
+            <TransactionRows v-if="transactionPage?.items.length" :transactions="transactionPage.items" />
+          </LoadState>
+          <PaginationBar
+            v-if="transactionPage"
+            :total="transactionPage.total"
+            :offset="transactionPage.offset"
+            :limit="transactionPage.limit"
+            :complete="transactionPage.complete"
+            @change="(value) => transactionOffset = value"
+          />
         </section>
       </template>
     </LoadState>
