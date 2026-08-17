@@ -12,7 +12,7 @@ env:
   # The TOS revision this repository's release gate is verified against.
   # Bumping it is a decision about what the gate means, so it is made here,
   # once, in the open -- not implied by whatever TOS happened to merge.
-  TOS_REF: 0ea9a4701
+  TOS_REF: e020fcf09
 
 jobs:
   quality:
