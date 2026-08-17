@@ -49,6 +49,25 @@ export interface TransactionMessage {
   created_at?: number;
 }
 
+export interface TransactionCompute {
+  skipped: boolean;
+  success?: boolean;
+  exit_code?: number;
+  vm_steps?: number;
+  account_activated?: boolean;
+  skip_reason?: number;
+}
+
+export interface TransactionAction {
+  success: boolean;
+  valid: boolean;
+  no_funds: boolean;
+  result_code: number;
+  total_actions: number;
+  skipped_actions: number;
+  messages_created: number;
+}
+
 export interface RawTransaction {
   data?: string;
   transaction_id: { lt: string; hash: string };
@@ -58,6 +77,11 @@ export interface RawTransaction {
   in_msg_hash?: string;
   in_msg?: TransactionMessage | null;
   out_msgs?: TransactionMessage[];
+  transaction_type?: string;
+  aborted?: boolean | null;
+  destroyed?: boolean | null;
+  compute?: TransactionCompute | null;
+  action?: TransactionAction | null;
 }
 
 export interface BlockTransactions {
@@ -257,6 +281,133 @@ export interface ExplorerTransaction {
   fee: string | null;
   in_msg_hash: string | null;
   indexed_at: number;
+  details?: Pick<RawTransaction,
+    "transaction_type" | "aborted" | "destroyed" | "compute" | "action" | "in_msg" | "out_msgs">;
+}
+
+export interface ExplorerMessageOccurrence extends TransactionMessage {
+  transaction_hash: string;
+  direction: "in" | "out";
+  account: string;
+  transaction_lt: string;
+  workchain: number;
+  shard: string;
+  seqno: number;
+}
+
+export interface ExplorerMessage {
+  hash: string;
+  occurrences: ExplorerMessageOccurrence[];
+}
+
+export interface EconomyStats {
+  agents: number;
+  tasks: number;
+  open_tasks: number;
+  settled_tasks: number;
+  services: number;
+  disputes: number;
+  total_task_budget: string;
+  service_revenue: string;
+  task_statuses: Array<{ status: string | null; count: number }>;
+}
+
+export interface StakingCycle {
+  election_id: number;
+  unfreeze_at: number;
+  duration_seconds: number;
+  total_stake: string;
+  rewards: string;
+  reward_rate: number;
+  annualized_apr: number | null;
+  compounded_apy: number | null;
+  validator_count: number;
+  vset_hash: string;
+  observed_at: number;
+}
+
+export interface NominatorPosition {
+  address: string;
+  amount: string | number;
+  pending_deposit: string | number;
+  withdraw_requested: boolean;
+}
+
+export interface NominatorPoolData {
+  state: number;
+  nominators_count: number;
+  stake_amount_sent: string;
+  validator_amount: string;
+  nominator_stake: string;
+  total_balance_at_risk: string;
+  validator_address: string;
+  validator_reward_share_bps: number;
+  max_nominators_count: number;
+  min_validator_stake: string;
+  min_nominator_stake: string;
+  stake_at: number;
+  saved_validator_set_hash: string;
+  validator_set_changes_count: number;
+  validator_set_change_time: number;
+  stake_held_for: number;
+  nominators: NominatorPosition[];
+}
+
+export interface StakingData {
+  current_election_available: boolean;
+  reward_history_available: boolean;
+  active_election_id: number;
+  election_closes_at: number;
+  current_election_stake: string;
+  current_participants: number;
+  minimum_stake: string;
+  election_failed: boolean;
+  election_finished: boolean;
+  pools: number;
+  active_pools: number;
+  nominators: number;
+  total_pool_stake: string;
+  updated_at: number;
+  cycles: StakingCycle[];
+  pool_records: Array<ExplorerContract<NominatorPoolData>>;
+}
+
+export interface BlockSignature {
+  node_id_short: string;
+  signature: string;
+}
+
+export interface BlockSignatures {
+  id: BlockId;
+  signatures: BlockSignature[];
+}
+
+export interface ValidatorSetConfig {
+  utime_since: number;
+  utime_until: number;
+  total: number;
+  main: number;
+  total_weight: string;
+  validators: Array<{
+    public_key: string;
+    adnl_address: string;
+    weight: string;
+    cumulative_weight: string;
+  }>;
+}
+
+export interface ValidatorOverview extends BlockSignatures {
+  validator_set: ValidatorSetConfig | null;
+}
+
+export interface GovernanceConfigProof {
+  seqno: number;
+  parameters: Array<{
+    id: number;
+    name: string;
+    description: string;
+    bytes: string | null;
+  }>;
 }
 
 export interface ExplorerBlock {
@@ -287,6 +438,7 @@ export interface ExplorerIndexStatus {
   blocks: number;
   transactions: number;
   contracts: number;
+  assets: number;
   latest_indexed_at: number | null;
   masterchain_head: number | null;
   masterchain_indexed: number | null;
@@ -294,8 +446,42 @@ export interface ExplorerIndexStatus {
   checkpoints: Array<{ shard: string; seqno: number }>;
 }
 
+export interface ExplorerAsset {
+  address: string;
+  kind: "jetton" | "nft_item" | "nft_collection";
+  updated_at: number;
+  holder_count: number;
+  data: Record<string, unknown>;
+}
+
+export interface ExplorerAssetDetail extends ExplorerAsset {
+  holders: Array<{
+    owner_address: string;
+    position_address: string | null;
+    kind: "jetton" | "nft_item";
+    last_lt: string;
+  }>;
+  offset: number;
+  limit: number;
+}
+
+export interface ContractVerification {
+  address: string;
+  compiler: string;
+  compiler_version: string;
+  repository_url: string;
+  source_commit: string;
+  source_digest: string;
+  build_command: string;
+  verified_at: number;
+  observed_mc_seqno: number;
+  manifest: Record<string, unknown>;
+}
+
 export type ExplorerSearchHit =
   | { kind: "transaction"; result: ExplorerTransaction }
+  | { kind: "message"; result: ExplorerMessageOccurrence }
+  | { kind: "asset"; result: ExplorerAsset }
   | { kind: "block"; result: ExplorerBlock }
   | { kind: "contract"; result: ExplorerContract };
 
@@ -305,6 +491,7 @@ export interface Page<T> {
   offset: number;
   limit: number;
   complete: boolean;
+  nextCursor?: string | null;
 }
 
 export interface ListResponse<T> {
@@ -313,6 +500,7 @@ export interface ListResponse<T> {
   offset: number;
   limit: number;
   result: T[];
+  next_cursor?: string | null;
 }
 
 export interface HomeData {

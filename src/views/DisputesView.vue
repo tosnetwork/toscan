@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { ref } from "vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import PaginationBar from "@/components/PaginationBar.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import { getDisputesPage } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
+import { useCursorPagination } from "@/composables/useCursorPagination";
 import { compact, formatDate } from "@/utils/format";
 
-const offset = ref(0);
 const limit = 50;
+const { cursor, offset, navigate } = useCursorPagination(limit);
 const { data, loading, error, refresh } = useAsyncData(
-  () => getDisputesPage(offset.value, limit),
-  [offset],
+  () => getDisputesPage(offset.value, limit, cursor.value),
+  [cursor],
   { refreshInterval: 20_000 },
 );
 </script>
@@ -35,7 +35,7 @@ const { data, loading, error, refresh } = useAsyncData(
           </tr>
         </tbody></table></div>
       </LoadState>
-      <PaginationBar v-if="data" :total="data.total" :offset="data.offset" :limit="data.limit" :complete="data.complete" @change="offset = $event" />
+      <PaginationBar v-if="data" :total="data.total" :offset="offset" :limit="data.limit" :complete="data.complete" cursor-mode :next-cursor="data.nextCursor" @navigate="(direction) => navigate(direction, data?.nextCursor)" />
     </section>
   </div>
 </template>

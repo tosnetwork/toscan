@@ -27,6 +27,14 @@ watch(data, (hit) => {
     });
     return;
   }
+  if (hit.kind === "message") {
+    void router.replace({ name: "message", params: { hash: hit.result.hash } });
+    return;
+  }
+  if (hit.kind === "asset") {
+    void router.replace({ name: "token", params: { address: hit.result.address } });
+    return;
+  }
   const routeName = {
     agent_account: "agent",
     task_escrow: "task",

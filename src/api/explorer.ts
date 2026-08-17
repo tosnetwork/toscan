@@ -10,14 +10,21 @@ import type {
   BlockHeader,
   BlockId,
   BlockSummary,
+  BlockSignatures,
   BlockTransactions,
+  ContractVerification,
   Dispute,
   ExplorerBlock,
+  ExplorerAsset,
+  ExplorerAssetDetail,
   ExplorerContract,
   ExplorerIndexStatus,
+  ExplorerMessage,
   ExplorerSearchHit,
   ExplorerTransaction,
+  EconomyStats,
   HomeData,
+  GovernanceConfigProof,
   JettonPosition,
   ListResponse,
   MasterchainInfo,
@@ -25,10 +32,12 @@ import type {
   Page,
   RawTransaction,
   Service,
+  StakingData,
   Task,
   TransactionDetail,
   TransactionSummary,
   TokenData,
+  ValidatorOverview,
   WalletEvent,
 } from "./types";
 import {
@@ -37,6 +46,7 @@ import {
   getPreviewTransaction,
   getPreviewToken,
   previewAgents,
+  previewAddress,
   previewBlocks,
   previewDisputes,
   previewHome,
@@ -91,6 +101,7 @@ function page<T>(response: ListResponse<T>, complete = true): Page<T> {
     offset: response.offset,
     limit: response.limit,
     complete,
+    nextCursor: response.next_cursor,
   };
 }
 
@@ -123,10 +134,11 @@ function indexedBlockSummary(block: ExplorerBlock): BlockSummary {
   };
 }
 
-async function listIndexedBlocks(offset: number, limit: number): Promise<Page<BlockSummary>> {
+async function listIndexedBlocks(offset: number, limit: number, cursor?: string): Promise<Page<BlockSummary>> {
   const response = await serviceApi.get<ListResponse<ExplorerBlock>>("/explorer/blocks", {
     offset,
     limit,
+    cursor,
   });
   const result = page(response);
   return { ...result, items: result.items.map(indexedBlockSummary) };
@@ -136,11 +148,13 @@ async function listIndexedTransactions(
   offset: number,
   limit: number,
   account?: string,
+  cursor?: string,
 ): Promise<Page<TransactionSummary>> {
   const response = await serviceApi.get<ListResponse<ExplorerTransaction>>("/explorer/transactions", {
     account,
     offset,
     limit,
+    cursor,
   });
   const result = page(response);
   return { ...result, items: result.items.map(indexedTransactionSummary) };
@@ -152,6 +166,7 @@ async function listIndexedBlockTransactions(
   seqno: number,
   offset: number,
   limit: number,
+  cursor?: string,
 ): Promise<Page<TransactionSummary>> {
   const response = await serviceApi.get<ListResponse<ExplorerTransaction>>("/explorer/transactions", {
     workchain,
@@ -159,6 +174,7 @@ async function listIndexedBlockTransactions(
     seqno,
     offset,
     limit,
+    cursor,
   });
   const result = page(response);
   return { ...result, items: result.items.map(indexedTransactionSummary) };
@@ -169,10 +185,11 @@ async function listIndexedContracts<T extends object>(
   offset: number,
   limit: number,
   params: Record<string, string | number | undefined> = {},
+  cursor?: string,
 ): Promise<Page<ExplorerContract<T>>> {
   const response = await serviceApi.get<ListResponse<ExplorerContract<T>>>(
     `/explorer/contracts/${encodeURIComponent(kind)}`,
-    { ...params, offset, limit },
+    { ...params, offset, limit, cursor },
   );
   return page(response);
 }
@@ -319,10 +336,10 @@ export async function getHome(): Promise<HomeData> {
   }, () => previewHome);
 }
 
-export async function getBlocksPage(offset = 0, limit = 20): Promise<Page<BlockSummary>> {
+export async function getBlocksPage(offset = 0, limit = 20, cursor?: string): Promise<Page<BlockSummary>> {
   return withPreview(
     () => prefer(
-      () => listIndexedBlocks(offset, limit),
+      () => listIndexedBlocks(offset, limit, cursor),
       async () => {
         const items = (await getLiveRecentBlocks(offset + limit)).slice(offset, offset + limit);
         return { items, total: items.length, offset, limit, complete: false };
@@ -352,10 +369,11 @@ export async function getBlockTransactionsPage(
   seqno: number,
   offset = 0,
   limit = 50,
+  cursor?: string,
 ): Promise<Page<TransactionSummary>> {
   return withPreview(
     () => prefer(
-      () => listIndexedBlockTransactions(workchain, shard, seqno, offset, limit),
+      () => listIndexedBlockTransactions(workchain, shard, seqno, offset, limit, cursor),
       async () => {
         const response = await rpc.call<BlockTransactions>("getBlockTransactions", {
           workchain,
@@ -393,10 +411,10 @@ export async function getBlockTransactionsPage(
   );
 }
 
-export async function getTransactionsPage(offset = 0, limit = 40): Promise<Page<TransactionSummary>> {
+export async function getTransactionsPage(offset = 0, limit = 40, cursor?: string): Promise<Page<TransactionSummary>> {
   return withPreview(
     () => prefer<Page<TransactionSummary>>(
-      () => listIndexedTransactions(offset, limit),
+      () => listIndexedTransactions(offset, limit, undefined, cursor),
       async () => {
         const blocks = await getLiveRecentBlocks(8);
         const items = await getLiveTransactions(blocks, limit);
@@ -421,9 +439,10 @@ export async function getAccountTransactionsPage(
   account: string,
   offset = 0,
   limit = 50,
+  cursor?: string,
 ): Promise<Page<TransactionSummary>> {
   return withPreview(
-    () => listIndexedTransactions(offset, limit, account),
+    () => listIndexedTransactions(offset, limit, account, cursor),
     () => {
       const items = previewTransactions.filter((transaction) => transaction.account === account);
       return {
@@ -468,9 +487,137 @@ export async function getTransaction(account: string, lt: string, hash: string):
       fee: transaction.fee,
       time: transaction.utime ?? header?.gen_utime ?? indexed?.indexed_at ?? 0,
       block: indexed ? { workchain: indexed.workchain, shard: indexed.shard, seqno: indexed.seqno } : undefined,
-      raw: transaction,
+      raw: { ...(indexed?.details ?? {}), ...transaction },
     };
   }, () => getPreviewTransaction(account, lt, hash));
+}
+
+export async function getMessage(hash: string): Promise<ExplorerMessage> {
+  return withPreview(
+    () => serviceApi.get<{ ok: boolean; result: ExplorerMessage }>("/explorer/message", { hash })
+      .then((value) => value.result),
+    () => {
+      const occurrences = previewTransactions.flatMap((transaction) => {
+        const raw = getPreviewTransaction(transaction.account, transaction.lt, transaction.hash).raw;
+        return [
+          ...(raw.in_msg?.hash === hash ? [{
+            ...raw.in_msg, transaction_hash: transaction.hash, direction: "in" as const,
+            account: transaction.account, transaction_lt: transaction.lt,
+            workchain: transaction.block?.workchain ?? -1, shard: transaction.block?.shard ?? "-9223372036854775808",
+            seqno: transaction.block?.seqno ?? 0,
+          }] : []),
+          ...(raw.out_msgs ?? []).filter((message) => message.hash === hash).map((message) => ({
+            ...message, transaction_hash: transaction.hash, direction: "out" as const,
+            account: transaction.account, transaction_lt: transaction.lt,
+            workchain: transaction.block?.workchain ?? -1, shard: transaction.block?.shard ?? "-9223372036854775808",
+            seqno: transaction.block?.seqno ?? 0,
+          })),
+        ];
+      });
+      if (!occurrences.length) throw new Error("Message not found");
+      return { hash, occurrences };
+    },
+  );
+}
+
+export async function getEconomyStats(): Promise<EconomyStats> {
+  return withPreview(
+    () => serviceApi.get<{ ok: boolean; result: EconomyStats }>("/explorer/economy")
+      .then((value) => value.result),
+    () => ({
+      agents: previewAgents.length,
+      tasks: previewTasks.length,
+      open_tasks: previewTasks.filter((task) => task.status === "open").length,
+      settled_tasks: previewTasks.filter((task) => task.status === "settled").length,
+      services: previewServices.length,
+      disputes: previewDisputes.length,
+      total_task_budget: previewTasks.reduce((sum, task) => sum + BigInt(task.budget), 0n).toString(),
+      service_revenue: previewServices.reduce((sum, service) => sum + BigInt(service.withdrawable_revenue), 0n).toString(),
+      task_statuses: [...previewTasks.reduce((statuses, task) => {
+        statuses.set(task.status, (statuses.get(task.status) ?? 0) + 1);
+        return statuses;
+      }, new Map<string, number>())].map(([status, count]) => ({ status, count })),
+    }),
+  );
+}
+
+export async function getStakingData(): Promise<StakingData> {
+  return withPreview(
+    () => serviceApi.get<{ ok: boolean; result: StakingData }>("/explorer/staking")
+      .then((value) => value.result),
+    () => ({
+      current_election_available: false,
+      reward_history_available: false,
+      active_election_id: 0,
+      election_closes_at: 0,
+      current_election_stake: "0",
+      current_participants: 0,
+      minimum_stake: "0",
+      election_failed: false,
+      election_finished: false,
+      pools: 0,
+      active_pools: 0,
+      nominators: 0,
+      total_pool_stake: "0",
+      updated_at: Math.floor(Date.now() / 1000),
+      cycles: [],
+      pool_records: [],
+    }),
+  );
+}
+
+export async function getLatestBlockSignatures(): Promise<BlockSignatures> {
+  return withPreview(async () => {
+    const info = await rpc.call<MasterchainInfo>("getMasterchainInfo");
+    return rpc.call<BlockSignatures>("getMasterchainBlockSignatures", { seqno: info.last.seqno });
+  }, () => ({ id: previewBlocks[0]!, signatures: [] }));
+}
+
+export async function getValidatorOverview(): Promise<ValidatorOverview> {
+  return withPreview(async () => {
+    const info = await rpc.call<MasterchainInfo>("getMasterchainInfo");
+    const [proof, config] = await Promise.all([
+      rpc.call<BlockSignatures>("getMasterchainBlockSignatures", { seqno: info.last.seqno }),
+      rpc.call<{ validator_set?: ValidatorOverview["validator_set"] }>("getConfigParam", {
+        param: 34, seqno: info.last.seqno,
+      }),
+    ]);
+    return { ...proof, validator_set: config.validator_set ?? null };
+  }, () => ({
+    id: previewBlocks[0]!, signatures: [],
+    validator_set: {
+      utime_since: (previewBlocks[0]?.time ?? 0) - 3_600,
+      utime_until: (previewBlocks[0]?.time ?? 0) + 82_800,
+      total: 3, main: 3, total_weight: "300",
+      validators: [1, 2, 3].map((index) => ({
+        public_key: `preview-validator-${index}`, adnl_address: `preview-adnl-${index}`,
+        weight: "100", cumulative_weight: String(index * 100),
+      })),
+    },
+  }));
+}
+
+export async function getGovernanceConfig(): Promise<GovernanceConfigProof> {
+  const definitions = [
+    { id: 0, name: "Configuration authority", description: "The account authorized to change network configuration." },
+    { id: 8, name: "Global protocol version", description: "The chain-committed protocol capability and version cell." },
+    { id: 34, name: "Current validator set", description: "The validator-set cell currently governing consensus." },
+    { id: 36, name: "Next validator set", description: "The elected next validator set, when one is committed." },
+    { id: 40, name: "Misbehavior and slashing", description: "The chain configuration for validator punishment, when enabled." },
+  ];
+  return withPreview(async () => {
+    const info = await rpc.call<MasterchainInfo>("getMasterchainInfo");
+    const parameters = await Promise.all(definitions.map(async (definition) => {
+      const result = await optional(rpc.call<{ config: { bytes: string } }>("getConfigParam", {
+        param: definition.id, seqno: info.last.seqno,
+      }), null);
+      return { ...definition, bytes: result?.config.bytes ?? null };
+    }));
+    return { seqno: info.last.seqno, parameters };
+  }, () => ({
+    seqno: previewBlocks[0]?.seqno ?? 0,
+    parameters: definitions.map((definition) => ({ ...definition, bytes: definition.id === 36 ? null : "te6cckEBAQEA" })),
+  }));
 }
 
 export async function getAccount(address: string): Promise<AccountDetail> {
@@ -500,6 +647,13 @@ export async function getAccount(address: string): Promise<AccountDetail> {
   }, () => getPreviewAccount(address));
 }
 
+export async function getContractVerification(address: string): Promise<ContractVerification | null> {
+  if (runtime.mode.value === "preview") return null;
+  return optional(serviceApi.get<{ ok: boolean; result: ContractVerification }>(
+    `/explorer/verifications/${encodeURIComponent(address)}`,
+  ).then((response) => response.result), null);
+}
+
 export async function getToken(address: string, previewHint?: string): Promise<TokenData> {
   return withPreview(
     () => rpc.call<TokenData>("getTokenData", { address }),
@@ -507,11 +661,61 @@ export async function getToken(address: string, previewHint?: string): Promise<T
   );
 }
 
-export async function getTasksPage(offset = 0, limit = 100, status?: string): Promise<Page<Task>> {
+export async function getAssetsPage(
+  offset = 0,
+  limit = 50,
+  kind?: string,
+  cursor?: string,
+): Promise<Page<ExplorerAsset>> {
+  return withPreview(async () => page(await serviceApi.get<ListResponse<ExplorerAsset>>("/explorer/assets", {
+    offset, limit, kind, cursor,
+  })), () => {
+    const positions: ExplorerAsset[] = getPreviewAccount(previewAddress).jettons.map((position) => ({
+      address: position.jetton_master,
+      kind: "jetton" as const,
+      updated_at: previewBlocks[0]?.time ?? Math.floor(Date.now() / 1000),
+      holder_count: 1,
+      data: { ...getPreviewToken(position.jetton_master) },
+    }));
+    positions.push(...getPreviewAccount(previewAddress).nfts.map((position) => ({
+      address: position.nft_item,
+      kind: "nft_item" as const,
+      updated_at: previewBlocks[0]?.time ?? Math.floor(Date.now() / 1000),
+      holder_count: 1,
+      data: { ...getPreviewToken(position.nft_item, "nft") },
+    })));
+    const filtered = positions.filter((asset) => !kind || asset.kind === kind);
+    return { items: filtered.slice(offset, offset + limit), total: filtered.length, offset, limit, complete: true };
+  });
+}
+
+export async function getIndexedAsset(address: string): Promise<ExplorerAssetDetail | null> {
+  return withPreview(
+    () => optional(serviceApi.get<{ ok: boolean; result: ExplorerAssetDetail }>(
+      `/explorer/assets/${encodeURIComponent(address)}`,
+    ).then((response) => response.result), null),
+    () => {
+      const account = getPreviewAccount(previewAddress);
+      const jetton = account.jettons.find((position) => position.jetton_master === address);
+      const nft = account.nfts.find((position) => position.nft_item === address);
+      if (!jetton && !nft) return null;
+      return {
+        address, kind: jetton ? "jetton" : "nft_item",
+        updated_at: previewBlocks[0]?.time ?? Math.floor(Date.now() / 1000), holder_count: 1,
+        data: { ...getPreviewToken(address, nft ? "nft" : undefined) },
+        holders: [{ owner_address: previewAddress, position_address: jetton?.jetton_wallet ?? address,
+          kind: jetton ? "jetton" : "nft_item", last_lt: jetton?.last_lt ?? nft!.last_lt }],
+        offset: 0, limit: 50,
+      };
+    },
+  );
+}
+
+export async function getTasksPage(offset = 0, limit = 100, status?: string, cursor?: string): Promise<Page<Task>> {
   return withPreview(
     () => prefer(
       async () => {
-        const indexed = await listIndexedContracts<Task>("task_escrow", offset, limit, { status });
+        const indexed = await listIndexedContracts<Task>("task_escrow", offset, limit, { status }, cursor);
         return { ...indexed, items: indexed.items.map((contract) => ({ ...contract.data, address: contract.address })) };
       },
       async () => {
@@ -531,11 +735,11 @@ export async function getTasks(limit = 100): Promise<Task[]> {
   return (await getTasksPage(0, limit)).items;
 }
 
-export async function getServicesPage(offset = 0, limit = 100): Promise<Page<Service>> {
+export async function getServicesPage(offset = 0, limit = 100, cursor?: string): Promise<Page<Service>> {
   return withPreview(
     () => prefer(
       async () => {
-        const indexed = await listIndexedContracts<Service>("service_actor", offset, limit);
+        const indexed = await listIndexedContracts<Service>("service_actor", offset, limit, {}, cursor);
         return { ...indexed, items: indexed.items.map((contract) => ({ ...contract.data, address: contract.address })) };
       },
       async () => {
@@ -551,10 +755,10 @@ export async function getServices(limit = 100): Promise<Service[]> {
   return (await getServicesPage(0, limit)).items;
 }
 
-export async function getDisputesPage(offset = 0, limit = 100): Promise<Page<Dispute>> {
+export async function getDisputesPage(offset = 0, limit = 100, cursor?: string): Promise<Page<Dispute>> {
   return withPreview(
     async () => {
-      const indexed = await listIndexedContracts<Dispute>("dispute", offset, limit);
+      const indexed = await listIndexedContracts<Dispute>("dispute", offset, limit, {}, cursor);
       return { ...indexed, items: indexed.items.map((contract) => ({ ...contract.data, address: contract.address })) };
     },
     () => ({
@@ -567,12 +771,12 @@ export async function getDisputesPage(offset = 0, limit = 100): Promise<Page<Dis
   );
 }
 
-export async function getAgentsPage(offset = 0, limit = 100): Promise<Page<Agent>> {
+export async function getAgentsPage(offset = 0, limit = 100, cursor?: string): Promise<Page<Agent>> {
   return withPreview(
     () => prefer<Page<Agent>>(
       async () => {
         const [indexed, tasks] = await Promise.all([
-          listIndexedContracts<Agent>("agent_account", offset, limit),
+          listIndexedContracts<Agent>("agent_account", offset, limit, {}, cursor),
           getTasks(200),
         ]);
         return {
@@ -613,6 +817,7 @@ export async function getExplorerStatus(): Promise<ExplorerIndexStatus | null> {
       blocks: previewBlocks.length,
       transactions: previewTransactions.length,
       contracts: previewAgents.length + previewTasks.length + previewServices.length,
+      assets: 2,
       latest_indexed_at: previewBlocks[0]?.time ?? null,
       masterchain_head: previewBlocks[0]?.seqno ?? null,
       masterchain_indexed: previewBlocks[0]?.seqno ?? null,

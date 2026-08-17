@@ -2,11 +2,14 @@ import type {
   BlockHeader,
   BlockId,
   BlockTransactionsPage,
+  JettonPosition,
   MasterchainBundle,
   MasterchainInfo,
   ProjectedBlock,
   ProjectedTransaction,
+  NftPosition,
   ShardsInfo,
+  TokenData,
 } from "./types.js";
 
 interface RpcEnvelope<T> {
@@ -52,6 +55,20 @@ export class TosRpc {
     return this.call("getMasterchainInfo");
   }
 
+  accountJettons(address: string): Promise<JettonPosition[]> {
+    return this.call<{ jettons: JettonPosition[] }>("getAccountJettons", { address, limit: 256 })
+      .then((result) => result.jettons);
+  }
+
+  accountNfts(address: string): Promise<NftPosition[]> {
+    return this.call<{ nfts: NftPosition[] }>("getAccountNfts", { address, limit: 256 })
+      .then((result) => result.nfts);
+  }
+
+  tokenData(address: string): Promise<TokenData> {
+    return this.call<TokenData>("getTokenData", { address });
+  }
+
   blockId(workchain: number, shard: string, seqno: number): Promise<BlockId> {
     return this.call("lookupBlock", { workchain, shard, seqno });
   }
@@ -84,6 +101,15 @@ export class TosRpc {
           seqno,
           fee: transaction.fee ?? null,
           in_msg_hash: transaction.in_msg_hash ?? null,
+          details: {
+            transaction_type: transaction.transaction_type ?? "unknown",
+            aborted: transaction.aborted ?? null,
+            destroyed: transaction.destroyed ?? null,
+            compute: transaction.compute ?? null,
+            action: transaction.action ?? null,
+            in_msg: transaction.in_msg ?? null,
+            out_msgs: transaction.out_msgs ?? [],
+          },
         });
       }
       incomplete = page.incomplete;

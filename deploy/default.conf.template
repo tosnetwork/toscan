@@ -23,7 +23,7 @@ server {
 
   # Only the node's read-only REST methods are reachable from the public UI.
   # The upstream API key stays inside this reverse proxy.
-  location ~ ^/tos-rpc/(getMasterchainInfo|getConsensusBlock|lookupBlock|getBlockHeader|getBlockTransactions|getBlockTransactionsExt|getMasterchainBlockSignatures|getTransactions|getAddressInformation|getAccountCapability|getAccountAgents|getAccountEvents|getAccountJettons|getAccountNfts|getTokenData)$ {
+  location ~ ^/tos-rpc/(getMasterchainInfo|getConsensusBlock|getConfigParam|lookupBlock|getBlockHeader|getBlockTransactions|getBlockTransactionsExt|getMasterchainBlockSignatures|getTransactions|getAddressInformation|getAccountCapability|getAccountAgents|getAccountEvents|getAccountJettons|getAccountNfts|getTokenData)$ {
     limit_except POST { deny all; }
     limit_req zone=explorer_reads burst=60 nodelay;
     rewrite ^/tos-rpc/(.*)$ /$1 break;

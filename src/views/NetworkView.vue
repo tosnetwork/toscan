@@ -15,7 +15,7 @@ function refreshAll() { void refresh(); void refreshIndex(); }
 
 <template>
   <div class="container page-container">
-    <PageHeading title="Network" description="Current chain tip, durable index progress, consensus evidence and source health." eyebrow="Observability"><button class="button button--secondary" type="button" @click="refreshAll"><AppIcon name="refresh" :size="17" />Refresh</button></PageHeading>
+    <PageHeading title="Network" description="Current chain tip, durable index progress, consensus evidence and source health." eyebrow="Observability"><div class="heading-actions"><RouterLink class="button button--secondary" to="/validators">Validators</RouterLink><RouterLink class="button button--secondary" to="/governance">Governance</RouterLink><button class="button button--secondary" type="button" @click="refreshAll"><AppIcon name="refresh" :size="17" />Refresh</button></div></PageHeading>
     <LoadState :loading="loading" :error="error" @retry="refresh">
       <template v-if="data">
         <section class="network-overview">

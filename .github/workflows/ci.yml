@@ -82,3 +82,74 @@ jobs:
         env:
           QUERY_INTEGRATION_DATABASE_URL: postgresql://toscan:toscan-ci@127.0.0.1:5432/toscan
         run: pnpm test:query:integration
+
+  real-chain-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: toscan
+          POSTGRES_PASSWORD: toscan-ci
+          POSTGRES_DB: toscan_real_chain
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U toscan -d toscan_real_chain"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: tosnetwork/tos
+          path: tos
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libjemalloc-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tos/tosctl/src -> target
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Prepare TOS and TOSCAN dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+          cd tos
+          uv python install 3.14
+          uv sync --no-dev
+          uv run test/tostester/generate_tl.py
+      - name: Build native localnet, JSON-RPC and explorer
+        working-directory: tos
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --target validator-engine dht-server create-state generate-random-id toslibjson -j2
+          cargo build --manifest-path tosctl/src/Cargo.toml -p tosctl --locked
+      - name: Real-chain browser release gate
+        working-directory: tos
+        env:
+          DATABASE_URL: postgresql://toscan:toscan-ci@127.0.0.1:5432/toscan_real_chain
+        run: >-
+          uv run python scripts/toscan-explorer-e2e.py
+          --browser-command "cd .. && python3 scripts/real-chain-browser-gate.py"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: real-chain-browser-logs
+          path: |
+            tos/test/integration/.toscan-explorer-e2e/*.log
+            playwright-report/
+          retention-days: 7

@@ -11,9 +11,12 @@ const networkName = (import.meta.env.VITE_TOS_NETWORK || "mainnet").toUpperCase(
 const navigation = [
   { to: "/blocks", label: "Blocks" },
   { to: "/transactions", label: "Transactions" },
+  { to: "/assets", label: "Assets" },
   { to: "/agents", label: "Agents" },
   { to: "/tasks", label: "Tasks" },
   { to: "/services", label: "Services" },
+  { to: "/economy", label: "Economy" },
+  { to: "/staking", label: "Staking" },
   { to: "/network", label: "Network" },
 ];
 </script>

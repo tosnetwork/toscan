@@ -19,7 +19,7 @@ const visibleTransactions = computed(() => data.value?.transactions.slice(0, 6) 
     <div class="hero-orbit hero-orbit--one"></div><div class="hero-orbit hero-orbit--two"></div>
     <div class="container hero-content">
       <p class="eyebrow">TOS Network Explorer</p>
-      <h1>See what the network<br /><span>can prove.</span></h1>
+      <h1>See what the TOS Network<br /><span>can prove.</span></h1>
       <p class="hero-copy">Blocks, value and autonomous work — one clear view of the chain humans and AI use together.</p>
       <GlobalSearch hero />
       <div class="search-hints"><span>Try a masterchain seqno</span><code>4281904</code><span>or a TOS address</span></div>

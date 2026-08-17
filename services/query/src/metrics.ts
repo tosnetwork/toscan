@@ -5,6 +5,8 @@ export class Metrics {
   projectionErrors = 0;
   queryRequests = 0;
   lastProjectionSuccess = 0;
+  lastProjectionError = 0;
+  sourceHealthy = false;
 
   render(): string {
     const lag = Math.max(0, this.head - this.indexed);
@@ -26,6 +28,10 @@ export class Metrics {
       `toscan_query_requests_total ${this.queryRequests}`,
       "# TYPE toscan_projection_last_success_unixtime gauge",
       `toscan_projection_last_success_unixtime ${this.lastProjectionSuccess}`,
+      "# TYPE toscan_projection_last_error_unixtime gauge",
+      `toscan_projection_last_error_unixtime ${this.lastProjectionError}`,
+      "# TYPE toscan_projection_source_healthy gauge",
+      `toscan_projection_source_healthy ${this.sourceHealthy ? 1 : 0}`,
       "",
     ].join("\n");
   }

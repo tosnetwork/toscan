@@ -22,8 +22,12 @@ const projector = new Projector(db, rpc, metrics, {
   batchSize: Math.max(1, Number(process.env.QUERY_PROJECT_BATCH ?? 8)),
   pollMs: Math.max(250, Number(process.env.QUERY_POLL_MS ?? 1_000)),
   contractSyncMs: Math.max(5_000, Number(process.env.QUERY_CONTRACT_SYNC_MS ?? 30_000)),
+  assetScanBatch: Math.max(1, Number(process.env.QUERY_ASSET_SCAN_BATCH ?? 16)),
 });
-const app = buildServer(db, metrics);
+const app = buildServer(db, metrics, {
+  maxLag: Math.max(0, Number(process.env.QUERY_READY_MAX_LAG ?? 2)),
+  maxStaleSeconds: Math.max(1, Number(process.env.QUERY_READY_MAX_STALE_SECONDS ?? 30)),
+});
 const abort = new AbortController();
 const shutdown = async (): Promise<void> => {
   abort.abort();

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import AppIcon from "@/components/AppIcon.vue";
 import CopyButton from "@/components/CopyButton.vue";
@@ -8,21 +8,24 @@ import PageHeading from "@/components/PageHeading.vue";
 import PaginationBar from "@/components/PaginationBar.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import TransactionRows from "@/components/TransactionRows.vue";
-import { getAccount, getAccountTransactionsPage } from "@/api/explorer";
+import { getAccount, getAccountTransactionsPage, getContractVerification } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
+import { useCursorPagination } from "@/composables/useCursorPagination";
 import { compact, formatDate, formatInteger, formatTos, timeAgo } from "@/utils/format";
 
 type Tab = "activity" | "transactions" | "assets" | "authority" | "raw";
 const route = useRoute();
 const address = computed(() => String(route.params.address));
 const tab = ref<Tab>("activity");
-const transactionOffset = ref(0);
 const transactionLimit = 50;
+const transactionPagination = useCursorPagination(transactionLimit);
 const { data, loading, error, refresh } = useAsyncData(() => getAccount(address.value), [address]);
+const { data: verification } = useAsyncData(() => getContractVerification(address.value), [address]);
 const { data: transactionPage, loading: transactionsLoading, error: transactionsError, refresh: refreshTransactions } = useAsyncData(
-  () => getAccountTransactionsPage(address.value, transactionOffset.value, transactionLimit),
-  [address, transactionOffset],
+  () => getAccountTransactionsPage(address.value, transactionPagination.offset.value, transactionLimit, transactionPagination.cursor.value),
+  [address, transactionPagination.cursor],
 );
+watch(address, () => transactionPagination.reset());
 </script>
 
 <template>
@@ -60,7 +63,7 @@ const { data: transactionPage, loading: transactionsLoading, error: transactions
             <LoadState :loading="transactionsLoading" :error="transactionsError" :empty="!transactionPage?.items.length" @retry="refreshTransactions">
               <TransactionRows v-if="transactionPage?.items.length" :transactions="transactionPage.items" />
             </LoadState>
-            <PaginationBar v-if="transactionPage" :total="transactionPage.total" :offset="transactionPage.offset" :limit="transactionPage.limit" :complete="transactionPage.complete" @change="transactionOffset = $event" />
+            <PaginationBar v-if="transactionPage" :total="transactionPage.total" :offset="transactionPagination.offset.value" :limit="transactionPage.limit" :complete="transactionPage.complete" cursor-mode :next-cursor="transactionPage.nextCursor" @navigate="(direction) => transactionPagination.navigate(direction, transactionPage?.nextCursor)" />
           </div>
           <div v-else-if="tab === 'assets'" class="tab-panel" role="tabpanel">
             <h2>Indexed assets</h2><p class="panel-copy">Ownership entries are state-verified by the node wallet index. Live token balances require the respective contract getter.</p>
@@ -83,6 +86,16 @@ const { data: transactionPage, loading: transactionsLoading, error: transactions
           </div>
           <div v-else class="tab-panel raw-panel" role="tabpanel">
             <h2>Raw account state</h2><dl class="detail-list"><div><dt>Synced at</dt><dd>{{ formatDate(data.info.sync_utime) }}</dd></div><div><dt>Block</dt><dd>{{ formatInteger(data.info.block_id.seqno) }}</dd></div></dl>
+            <section v-if="verification" class="verification-card">
+              <div><span class="status-badge" data-tone="positive">Build matched</span><h3>Reproducible contract build</h3><p>The submitted code BOC exactly matched this account at masterchain block {{ formatInteger(verification.observed_mc_seqno) }}.</p></div>
+              <dl class="detail-list detail-list--compact">
+                <div><dt>Compiler</dt><dd>{{ verification.compiler }} {{ verification.compiler_version }}</dd></div>
+                <div><dt>Source</dt><dd><a class="detail-link" :href="verification.repository_url" target="_blank" rel="noopener noreferrer">Repository at {{ compact(verification.source_commit, 10, 7) }}</a></dd></div>
+                <div><dt>Source SHA-256</dt><dd class="mono">{{ verification.source_digest }}</dd></div>
+                <div><dt>Matched</dt><dd>{{ formatDate(verification.verified_at) }}</dd></div>
+              </dl>
+            </section>
+            <p v-else class="verification-empty">No independently matched build attestation is registered for this account.</p>
             <details><summary>Code BOC</summary><pre>{{ data.info.code || "No code" }}</pre></details><details><summary>Data BOC</summary><pre>{{ data.info.data || "No data" }}</pre></details>
           </div>
         </section>

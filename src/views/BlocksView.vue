@@ -1,22 +1,19 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import { useRoute } from "vue-router";
 import BlockRows from "@/components/BlockRows.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import PaginationBar from "@/components/PaginationBar.vue";
 import { getBlocksPage } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
+import { useCursorPagination } from "@/composables/useCursorPagination";
 
-const route = useRoute();
-const offset = ref(Math.max(0, Number(route.query.offset) || 0));
 const limit = 20;
+const { cursor, offset, navigate } = useCursorPagination(limit);
 const { data, loading, error, refresh } = useAsyncData(
-  () => getBlocksPage(offset.value, limit),
-  [offset],
+  () => getBlocksPage(offset.value, limit, cursor.value),
+  [cursor],
   { refreshInterval: 10_000 },
 );
-watch(() => route.query.offset, (value) => { offset.value = Math.max(0, Number(value) || 0); });
 </script>
 
 <template>
@@ -28,10 +25,12 @@ watch(() => route.query.offset, (value) => { offset.value = Math.max(0, Number(v
       <PaginationBar
         v-if="data"
         :total="data.total"
-        :offset="data.offset"
+        :offset="offset"
         :limit="data.limit"
         :complete="data.complete"
-        @change="(value) => offset = value"
+        cursor-mode
+        :next-cursor="data.nextCursor"
+        @navigate="(direction) => navigate(direction, data?.nextCursor)"
       />
     </section>
   </div>

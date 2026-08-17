@@ -6,17 +6,18 @@ import PaginationBar from "@/components/PaginationBar.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import { getTasksPage } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
+import { useCursorPagination } from "@/composables/useCursorPagination";
 import { compact, formatDate, formatTos } from "@/utils/format";
 
 const filter = ref("all");
-const offset = ref(0);
 const limit = 50;
+const { cursor, offset, navigate, reset } = useCursorPagination(limit);
 const { data, loading, error, refresh } = useAsyncData(
-  () => getTasksPage(offset.value, limit, filter.value === "all" ? undefined : filter.value),
-  [offset, filter],
+  () => getTasksPage(offset.value, limit, filter.value === "all" ? undefined : filter.value, cursor.value),
+  [cursor, filter],
   { refreshInterval: 15_000 },
 );
-watch(filter, () => { offset.value = 0; });
+watch(filter, reset);
 </script>
 
 <template>
@@ -36,7 +37,7 @@ watch(filter, () => { offset.value = 0; });
           </tr>
         </tbody></table></div>
       </LoadState>
-      <PaginationBar v-if="data" :total="data.total" :offset="data.offset" :limit="data.limit" :complete="data.complete" @change="offset = $event" />
+      <PaginationBar v-if="data" :total="data.total" :offset="offset" :limit="data.limit" :complete="data.complete" cursor-mode :next-cursor="data.nextCursor" @navigate="(direction) => navigate(direction, data?.nextCursor)" />
     </section>
   </div>
 </template>

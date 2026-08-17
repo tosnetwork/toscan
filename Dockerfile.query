@@ -15,6 +15,6 @@ RUN corepack enable && corepack prepare pnpm@9.15.4 --activate \
 COPY --from=build /app/services/query/dist services/query/dist
 USER node
 EXPOSE 8081
-HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=5 \
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=30 \
   CMD wget -q -O /dev/null http://127.0.0.1:8081/readyz || exit 1
 CMD ["node", "services/query/dist/main.js"]

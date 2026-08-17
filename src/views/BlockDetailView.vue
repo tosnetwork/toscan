@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
 import AppIcon from "@/components/AppIcon.vue";
 import CopyButton from "@/components/CopyButton.vue";
@@ -9,6 +9,7 @@ import PaginationBar from "@/components/PaginationBar.vue";
 import TransactionRows from "@/components/TransactionRows.vue";
 import { getBlock, getBlockTransactionsPage } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
+import { useCursorPagination } from "@/composables/useCursorPagination";
 import { compact, formatDate, formatInteger } from "@/utils/format";
 
 const route = useRoute();
@@ -17,8 +18,8 @@ const chainLabel = computed(() => Number(route.params.workchain) === -1 ? "Maste
 const { data, loading, error, refresh } = useAsyncData(() => getBlock(
   Number(route.params.workchain), String(route.params.shard), Number(route.params.seqno),
 ), [identity]);
-const transactionOffset = ref(0);
 const transactionLimit = 50;
+const transactionPagination = useCursorPagination(transactionLimit);
 const {
   data: transactionPage,
   loading: transactionsLoading,
@@ -28,10 +29,11 @@ const {
   Number(route.params.workchain),
   String(route.params.shard),
   Number(route.params.seqno),
-  transactionOffset.value,
+  transactionPagination.offset.value,
   transactionLimit,
-), [identity, transactionOffset]);
-watch(identity, () => { transactionOffset.value = 0; });
+  transactionPagination.cursor.value,
+), [identity, transactionPagination.cursor]);
+watch(identity, () => transactionPagination.reset());
 </script>
 
 <template>
@@ -77,10 +79,12 @@ watch(identity, () => { transactionOffset.value = 0; });
           <PaginationBar
             v-if="transactionPage"
             :total="transactionPage.total"
-            :offset="transactionPage.offset"
+            :offset="transactionPagination.offset.value"
             :limit="transactionPage.limit"
             :complete="transactionPage.complete"
-            @change="(value) => transactionOffset = value"
+            cursor-mode
+            :next-cursor="transactionPage.nextCursor"
+            @navigate="(direction) => transactionPagination.navigate(direction, transactionPage?.nextCursor)"
           />
         </section>
       </template>

@@ -25,6 +25,43 @@ export interface BlockTransaction {
   utime?: number;
   fee?: string;
   in_msg_hash?: string;
+  in_msg?: TransactionMessage | null;
+  out_msgs?: TransactionMessage[];
+  transaction_type?: string;
+  aborted?: boolean | null;
+  destroyed?: boolean | null;
+  compute?: TransactionCompute | null;
+  action?: TransactionAction | null;
+}
+
+export interface TransactionMessage {
+  hash?: string;
+  kind: string;
+  source?: string;
+  destination?: string;
+  value?: string;
+  bounced?: boolean;
+  created_lt?: string;
+  created_at?: number;
+}
+
+export interface TransactionCompute {
+  skipped: boolean;
+  success?: boolean;
+  exit_code?: number;
+  vm_steps?: number;
+  account_activated?: boolean;
+  skip_reason?: number;
+}
+
+export interface TransactionAction {
+  success: boolean;
+  valid: boolean;
+  no_funds: boolean;
+  result_code: number;
+  total_actions: number;
+  skipped_actions: number;
+  messages_created: number;
 }
 
 export interface BlockTransactionsPage {
@@ -42,6 +79,7 @@ export interface ProjectedTransaction {
   seqno: number;
   fee: string | null;
   in_msg_hash: string | null;
+  details?: Record<string, unknown>;
 }
 
 export interface ProjectedBlock {
@@ -79,4 +117,61 @@ export interface ContractListResponse {
   offset: number;
   limit: number;
   result: ExplorerContract[];
+}
+
+export interface ExplorerStakingCycle {
+  election_id: number;
+  unfreeze_at: number;
+  duration_seconds: number;
+  total_stake: string;
+  rewards: string;
+  reward_rate: number;
+  annualized_apr: number | null;
+  compounded_apy: number | null;
+  validator_count: number;
+  vset_hash: string;
+}
+
+export interface ExplorerStakingOverview {
+  current_election_available?: boolean;
+  reward_history_available?: boolean;
+  active_election_id: number;
+  election_closes_at: number;
+  current_election_stake: string;
+  current_participants: number;
+  minimum_stake: string;
+  election_failed: boolean;
+  election_finished: boolean;
+  pools: number;
+  active_pools: number;
+  nominators: number;
+  total_pool_stake: string;
+  updated_at: number;
+}
+
+export interface ExplorerStakingResponse {
+  ok: boolean;
+  result: ExplorerStakingOverview;
+  cycles: ExplorerStakingCycle[];
+}
+
+export interface JettonPosition {
+  jetton_master: string;
+  jetton_wallet: string;
+  last_lt: string;
+}
+
+export interface NftPosition {
+  nft_item: string;
+  collection: string | null;
+  last_lt: string;
+}
+
+export type TokenData = Record<string, unknown> & { "@type": string };
+
+export interface ExplorerAsset {
+  address: string;
+  kind: "jetton" | "nft_item" | "nft_collection";
+  updated_at: number;
+  data: TokenData | Record<string, never>;
 }

@@ -11,7 +11,7 @@ TOSCAN has four independently scalable layers:
 
 Only the gateway is public. It allowlists the exact node read methods and `/explorer/*` query paths used by the UI. The node's general JSON-RPC endpoint, `tosctld` authentication/operator routes, PostgreSQL and query-service metrics remain private.
 
-Query-service replicas coordinate with a PostgreSQL advisory lease. Exactly one replica projects at a time; every replica can serve reads. A failed writer releases the lease with its database connection, so another replica resumes from the committed masterchain checkpoint. Each projection batch commits blocks, replacement deletions, rich transaction summaries and the checkpoint atomically.
+Query-service replicas coordinate with a PostgreSQL advisory lease. Exactly one replica projects at a time; every replica can serve reads. A failed writer releases the lease with its database connection, so another replica resumes from the committed masterchain checkpoint. Each projection batch commits blocks, replacement deletions, transaction execution, message edges, changed asset-scan accounts and the checkpoint atomically.
 
 ## Configuration
 
@@ -29,16 +29,22 @@ Capacity controls:
 - `QUERY_DB_POOL_SIZE` (default `20`): PostgreSQL connections per query replica;
 - `QUERY_POLL_MS` (default `1000`): delay between projection cycles;
 - `QUERY_CONTRACT_SYNC_MS` (default `30000`): contract-state refresh interval;
+- `QUERY_ASSET_SCAN_BATCH` (default `16`): changed accounts scanned for Jetton/NFT positions per cycle;
+- `QUERY_READY_MAX_LAG` (default `2`): maximum masterchain lag accepted by readiness;
+- `QUERY_READY_MAX_STALE_SECONDS` (default `30`): maximum age of the last healthy cycle;
 - `TOS_RPC_TIMEOUT_MS` (default `15000`): individual node request timeout.
 
 Tune projection concurrency against a replica/archive node rather than the validator's consensus-critical RPC capacity.
 
+The same `QUERY_CONTRACT_SYNC_MS` interval refreshes Elector reward cycles and Nominator Pool state. A failed staking source refresh marks the projection source unhealthy, so readiness fails closed instead of serving a silently stale rewards page.
+
 ## Health and monitoring
 
 - `/healthz` proves the query HTTP process is alive.
-- `/readyz` requires PostgreSQL and at least one successful projection/observer cycle.
+- `/readyz` requires PostgreSQL, a healthy source, a recent successful projection/observer cycle and lag within the configured threshold.
 - `/metrics` exposes the node head, projected head, lag, projection cycles/errors, query request count and last successful projection time.
-- `/explorer/status` adds durable block/transaction/contract totals and per-shard heads for the product UI.
+- `/explorer/status` adds durable block/transaction/contract/asset totals and per-shard heads for the product UI.
+- `/explorer/staking` serves the last committed Elector/pool projection. Its `updated_at` is the evidence freshness boundary shown to clients.
 
 Recommended alerts:
 
@@ -72,6 +78,6 @@ QUERY_INTEGRATION_DATABASE_URL=postgresql://toscan:toscan-local-only@127.0.0.1:5
 docker compose build
 ```
 
-The TOS repository must also pass `cargo test -p service` and `uv run python scripts/toscan-explorer-e2e.py`. The latter boots a native chain, deploys all five Agent Economy contract classes, verifies route isolation and rich transaction messages, then restarts the explorer and checks durable recovery.
+The TOS repository must also pass `cargo test -p service` and `uv run python scripts/toscan-explorer-e2e.py`. TOSCAN CI invokes that native-chain gate with the browser hook, so validator → source index → PostgreSQL → gateway → browser is release-gated as one path.
 
 Promote only when PostgreSQL projection lag reaches zero (or the explicitly approved deployment threshold) and search resolves a recent base64 node block hash, transaction hash and seeded contract address.

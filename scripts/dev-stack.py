@@ -20,6 +20,7 @@ PROCESS_FILE = STATE_DIR / "processes.json"
 SERVICES = {
     "node": "http://127.0.0.1:8012/readyz",
     "explorer": "http://127.0.0.1:8080/health",
+    "query": "http://127.0.0.1:8081/readyz",
     "web": "http://127.0.0.1:4173/",
 }
 
@@ -30,6 +31,14 @@ def tos_repo():
 
 def tosctl_binary():
     return tos_repo() / "tosctl/src/target/debug/tosctl"
+
+
+def compose_command():
+    if shutil.which("docker-compose"):
+        return ["docker-compose"]
+    if shutil.which("docker"):
+        return ["docker", "compose"]
+    raise RuntimeError("Docker Compose is required for PostgreSQL and the web gateway")
 
 
 def read_processes():
@@ -187,18 +196,19 @@ def start(args):
         write_processes(processes)
     wait_ready("explorer", 30)
 
-    if "web" not in processes:
-        env = dict(os.environ)
-        env.update({
-            "VITE_ENABLE_PREVIEW": "false",
-            "VITE_TOS_NETWORK": "localnet",
-            "TOS_RPC_PROXY_TARGET": "http://127.0.0.1:8011",
-            "TOS_SERVICE_PROXY_TARGET": "http://127.0.0.1:8080",
-        })
-        processes["web"] = launch(
-            "web", ["pnpm", "dev", "--host", "127.0.0.1"], TOSCAN_REPO, env
-        )
-        write_processes(processes)
+    compose_env = dict(os.environ)
+    compose_env.update({
+        "VITE_TOS_NETWORK": "localnet",
+        "TOS_RPC_UPSTREAM": "http://host.docker.internal:8011",
+        "TOS_SOURCE_EXPLORER": "http://host.docker.internal:8080",
+    })
+    subprocess.run(
+        [*compose_command(), "up", "--build", "-d", "postgres", "query", "toscan"],
+        cwd=TOSCAN_REPO,
+        env=compose_env,
+        check=True,
+    )
+    wait_ready("query", 180)
     wait_ready("web", 30)
 
     if not args.no_seed:
@@ -222,8 +232,13 @@ def seed(_args=None):
 
 
 def stop(_args=None):
+    subprocess.run(
+        [*compose_command(), "stop", "toscan", "query", "postgres"],
+        cwd=TOSCAN_REPO,
+        check=False,
+    )
     processes = read_processes()
-    for name in ("web", "explorer", "node"):
+    for name in ("explorer", "node"):
         record = processes.get(name)
         if not record or not process_alive(record):
             continue
@@ -246,6 +261,11 @@ def reset(args):
     if not args.yes:
         raise RuntimeError("reset deletes the local chain/index; repeat with --yes")
     stop()
+    subprocess.run(
+        [*compose_command(), "down", "--volumes", "--remove-orphans"],
+        cwd=TOSCAN_REPO,
+        check=True,
+    )
     if STATE_DIR.exists():
         shutil.rmtree(STATE_DIR)
     print("TOSCAN local chain, seed and index data were deleted.")
@@ -262,7 +282,7 @@ def print_status(_args=None):
 
 
 def logs(args):
-    names = [args.service] if args.service else ["node", "explorer", "web"]
+    names = [args.service] if args.service else ["node", "explorer"]
     for name in names:
         path = STATE_DIR / "logs" / f"{name}.log"
         print(f"\n== {name}: {path} ==")
@@ -291,7 +311,7 @@ def main():
     reset_parser.add_argument("--yes", action="store_true")
     reset_parser.set_defaults(function=reset)
     log_parser = subcommands.add_parser("logs", help="show recent component logs")
-    log_parser.add_argument("service", choices=SERVICES, nargs="?")
+    log_parser.add_argument("service", choices=("node", "explorer"), nargs="?")
     log_parser.add_argument("--lines", type=int, default=80)
     log_parser.set_defaults(function=logs)
 
