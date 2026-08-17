@@ -146,6 +146,13 @@ export interface ExplorerStakingOverview {
   active_pools: number;
   nominators: number;
   total_pool_stake: string;
+  effective_stake?: {
+    max_stake_factor_raw: number | null;
+    max_stake_factor: number | null;
+    smallest_elected_stake: string | null;
+    effective_stake_cap: string | null;
+    surplus_earns: boolean | null;
+  };
   updated_at: number;
 }
 

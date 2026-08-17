@@ -326,6 +326,14 @@ export interface StakingCycle {
   observed_at: number;
 }
 
+export interface EffectiveStakePolicy {
+  max_stake_factor_raw: number | null;
+  max_stake_factor: number | null;
+  smallest_elected_stake: string | null;
+  effective_stake_cap: string | null;
+  surplus_earns: boolean | null;
+}
+
 export interface NominatorPosition {
   address: string;
   amount: string | number;
@@ -367,6 +375,7 @@ export interface StakingData {
   active_pools: number;
   nominators: number;
   total_pool_stake: string;
+  effective_stake?: EffectiveStakePolicy;
   updated_at: number;
   cycles: StakingCycle[];
   pool_records: Array<ExplorerContract<NominatorPoolData>>;
@@ -383,6 +392,7 @@ export interface NominatorPoolDetail {
   pool: ExplorerContract<NominatorPoolData>;
   history: PoolSnapshot[];
   network_reward_cycles: StakingCycle[];
+  effective_stake: EffectiveStakePolicy | null;
 }
 
 export interface BlockSignature {

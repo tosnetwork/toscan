@@ -56,8 +56,12 @@ test("explores chain and AI-economy entities through deterministic routes", asyn
 test("staking, validator history, analytics and localization are explorable", async ({ page }) => {
   await page.goto("/staking");
   await expect(page.getByRole("heading", { name: "Completed reward cycles" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Stake above the effective cap earns no additional reward" })).toBeVisible();
+  await expect(page.getByText("Surplus is returned, so depositing above this boundary has zero marginal yield.")).toBeVisible();
   await page.locator(`a[href="/staking/pool/${previewPool}"]`).click();
   await expect(page.getByRole("heading", { name: "Nominator Pool" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "More pool capital does not always produce more rewards" })).toBeVisible();
+  await expect(page.getByText("Surplus earns").locator("..").getByText("No", { exact: true })).toBeVisible();
   await expect(page.getByText("Pool stake history")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Nominator positions" })).toBeVisible();
 

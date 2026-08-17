@@ -29,9 +29,14 @@ function percent(value: number | null | undefined): string {
       <template v-if="data">
         <section class="metric-strip" aria-label="Staking summary">
           <div><small>Current election stake</small><strong>{{ data.current_election_available ? formatTos(data.current_election_stake) : '—' }}</strong><span>{{ data.current_election_available ? `${formatInteger(data.current_participants)} participants` : 'No active election published' }}</span></div>
-          <div><small>Latest realized APY</small><strong>{{ percent(latestCycle?.compounded_apy) }}</strong><span>{{ latestCycle ? `Election ${latestCycle.election_id}` : 'Awaiting a completed cycle' }}</span></div>
+          <div><small>Latest realized network APY</small><strong>{{ percent(latestCycle?.compounded_apy) }}</strong><span>{{ latestCycle ? `Election ${latestCycle.election_id}` : 'Awaiting a completed cycle' }}</span></div>
           <div><small>Nominator Pool stake</small><strong>{{ formatTos(data.total_pool_stake) }}</strong><span>{{ formatInteger(data.active_pools) }} active of {{ formatInteger(data.pools) }} pools</span></div>
           <div><small>Nominators</small><strong>{{ formatInteger(data.nominators) }}</strong><span>Minimum {{ formatTos(data.minimum_stake) }}</span></div>
+        </section>
+
+        <section v-if="data.effective_stake" class="surface stake-cap-disclosure" :class="{ 'stake-cap-disclosure--binding': data.effective_stake.surplus_earns === false }" role="note" aria-labelledby="effective-stake-title">
+          <div><small>Effective-stake policy</small><h2 id="effective-stake-title">{{ data.effective_stake.surplus_earns === false ? 'Stake above the effective cap earns no additional reward' : data.effective_stake.surplus_earns === true ? 'Surplus stake can earn rewards' : 'Effective-stake evidence is not available yet' }}</h2><p v-if="data.effective_stake.surplus_earns === false && data.effective_stake.effective_stake_cap">Elector currently caps each elected validator’s reward-bearing stake at {{ formatTos(data.effective_stake.effective_stake_cap) }}. Surplus is returned, so depositing above this boundary has zero marginal yield.</p><p v-else-if="data.effective_stake.surplus_earns === true">Elector currently permits stake above the displayed cap to participate in rewards.</p><p v-else>The chain has not supplied enough completed-election evidence to state the current effective cap.</p></div>
+          <dl><div><dt>Max stake factor</dt><dd>{{ data.effective_stake.max_stake_factor === null ? '—' : data.effective_stake.max_stake_factor.toFixed(2) }}</dd></div><div><dt>Effective stake cap</dt><dd>{{ data.effective_stake.effective_stake_cap ? formatTos(data.effective_stake.effective_stake_cap) : '—' }}</dd></div><div><dt>Surplus earns</dt><dd>{{ data.effective_stake.surplus_earns === null ? 'Unknown' : data.effective_stake.surplus_earns ? 'Yes' : 'No' }}</dd></div></dl>
         </section>
 
         <section class="surface page-surface staking-cycle-card">
@@ -77,7 +82,7 @@ function percent(value: number | null | undefined): string {
           </div>
         </section>
 
-        <p class="surface evidence-note"><strong>Evidence boundary.</strong> Stake, rewards and election timing come from the Elector contract. Pools are admitted only when their deployed code hash matches the TOS Nominator Pool code; balances and memberships come from each pool’s get-methods. APR and APY are deterministic annualizations of realized on-chain rewards, not promised returns.</p>
+        <p class="surface evidence-note"><strong>Evidence boundary.</strong> Stake, rewards, effective-stake policy and election timing come from the Elector contract. Pools are admitted only when their deployed code hash matches the TOS Nominator Pool code; balances and memberships come from each pool’s get-methods. APR and APY are historical network annualizations, not marginal pool-deposit returns. When <code>surplus_earns</code> is false, capital above the effective cap earns no additional reward.</p>
       </template>
     </LoadState>
   </div>

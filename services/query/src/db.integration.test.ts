@@ -151,6 +151,11 @@ suite("PostgreSQL projection", () => {
         current_election_stake: "9000000000", current_participants: 3,
         minimum_stake: "1000000000", election_failed: false, election_finished: false,
         pools: 1, active_pools: 1, nominators: 2, total_pool_stake: "6000000000",
+        effective_stake: {
+          max_stake_factor_raw: 65_536, max_stake_factor: 1,
+          smallest_elected_stake: "10000000000000",
+          effective_stake_cap: "10000000000000", surplus_earns: false,
+        },
         updated_at: 1_700_000_100,
       },
       cycles: [{
@@ -165,6 +170,7 @@ suite("PostgreSQL projection", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().result).toMatchObject({
       active_election_id: 101, current_election_stake: "9000000000",
+      effective_stake: { max_stake_factor_raw: 65_536, max_stake_factor: 1, effective_stake_cap: "10000000000000", surplus_earns: false },
       cycles: [{ election_id: 100, rewards: "80000000" }],
       pool_records: [{ address: poolAddress, kind: "contract.pool.nominator", status: "staked" }],
     });
@@ -207,6 +213,7 @@ suite("PostgreSQL projection", () => {
     expect(pool.json().result).toMatchObject({
       pool: { address: poolAddress, data: { total_balance_at_risk: "7100000000" } },
       history: [{ observed_at: 1_700_001_100 }, { observed_at: 1_700_001_000 }],
+      effective_stake: { max_stake_factor_raw: 65_536, max_stake_factor: 1, effective_stake_cap: "10000000000000", surplus_earns: false },
     });
     const validators = await app.inject("/explorer/validators");
     expect(validators.json().result).toMatchObject({ observed_mc_seqno: 501 });

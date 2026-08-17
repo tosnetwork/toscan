@@ -566,6 +566,13 @@ export async function getStakingData(): Promise<StakingData> {
       active_pools: 1,
       nominators: 3,
       total_pool_stake: "1000000000000",
+      effective_stake: {
+        max_stake_factor_raw: 65_536,
+        max_stake_factor: 1,
+        smallest_elected_stake: "10000000000000",
+        effective_stake_cap: "10000000000000",
+        surplus_earns: false,
+      },
       updated_at: Math.floor(Date.now() / 1000),
       cycles: previewRewardCycles(),
       pool_records: [previewPool()],
@@ -649,6 +656,13 @@ export async function getNominatorPoolDetail(address: string): Promise<Nominator
           },
         })),
         network_reward_cycles: previewRewardCycles(),
+        effective_stake: {
+          max_stake_factor_raw: 65_536,
+          max_stake_factor: 1,
+          smallest_elected_stake: "10000000000000",
+          effective_stake_cap: "10000000000000",
+          surplus_earns: false,
+        },
       };
     },
   );

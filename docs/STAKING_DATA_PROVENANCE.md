@@ -48,6 +48,24 @@ compounded_apy = (1 + cycle_rate) ^ periods_per_year - 1
 
 The page labels these values as realized annualizations. A value is omitted when its inputs cannot produce a finite result. TOSCAN does not predict validator uptime, penalties, future participation, pool commission changes or future network issuance.
 
+## Effective-stake cap
+
+Historical APR/APY does not mean every additional pool deposit is reward-bearing. The source `/explorer/staking` response publishes the Elector-derived policy as a direct UI contract:
+
+```json
+{
+  "effective_stake": {
+    "max_stake_factor": 1.0,
+    "effective_stake_cap": "10000000000000",
+    "surplus_earns": false
+  }
+}
+```
+
+TOSCAN uses `surplus_earns` as the presentation predicate; it does not reimplement Elector selection math in the browser. When it is false, stake above `effective_stake_cap` is returned and earns no additional reward, so the marginal yield of further deposits beyond the cap is zero. The staking overview and every pool detail must display this constraint beside historical reward information.
+
+Changing `max_stake_factor` is a protocol-governance action, not a pool optimization. The current proposal gate requires at least eight independent validators; the TOS operator workflow is implemented by `propose-stake-factor.sh`. TOSCAN remains read-only and does not imply that a pool operator can lift the cap by aggregating more deposits.
+
 ## Durable projection and recovery
 
 The query service stores one current overview row and an upserted row per completed election. Pool records remain in the existing code-hash-classified contract table. Projection refresh happens under the same PostgreSQL writer lease as chain history, and readiness fails closed after a source error. PostgreSQL is a rebuildable read model: Elector state, canonical blocks and contract code/state remain the recovery authority.
@@ -58,6 +76,7 @@ The query service stores one current overview row and an upserted row per comple
 - Pool identity is deployed-code evidence.
 - Pool balances and memberships are get-method evidence at the reported refresh time.
 - APR/APY is deterministic derived data, not a promise or financial recommendation.
+- `surplus_earns` is the authoritative UI predicate for marginal-reward disclosure; when false, capital above the effective cap has zero marginal yield.
 - TOSCAN is read-only; joining, depositing, withdrawing and signing remain wallet/operator workflows outside the explorer.
 
 ## Reference material

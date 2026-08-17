@@ -369,7 +369,7 @@ export function buildServer(
   app.get<{ Params: { address: string } }>("/explorer/staking/pools/:address", async (request, reply) => {
     const address = request.params.address.toLowerCase();
     if (!ADDRESS.test(address)) throw Object.assign(new Error("invalid TOS address"), { statusCode: 400 });
-    const [pool, history, cycles] = await Promise.all([
+    const [pool, history, cycles, overview] = await Promise.all([
       db.pool.query(
         "SELECT * FROM explorer_contracts WHERE kind='contract.pool.nominator' AND address=$1",
         [address],
@@ -385,6 +385,7 @@ export function buildServer(
                 vset_hash,observed_at::text
          FROM explorer_staking_cycles ORDER BY election_id DESC LIMIT 128`,
       ),
+      db.pool.query("SELECT data FROM explorer_staking_overview WHERE singleton=true"),
     ]);
     if (!pool.rows[0]) {
       return reply.code(404).send({ ok: false, error: { message: "Nominator Pool is not indexed" } });
@@ -399,6 +400,7 @@ export function buildServer(
         duration_seconds: Number(row.duration_seconds),
         observed_at: Number(row.observed_at),
       })),
+      effective_stake: overview.rows[0]?.data?.effective_stake ?? null,
     } };
   });
 
