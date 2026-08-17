@@ -274,11 +274,53 @@ h1, h2, h3, p { margin-top: 0; }
 .status-bar i { display: block; min-width: 3px; height: 100%; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 50%, var(--positive))); border-radius: inherit; }
 .status-bar strong { text-align: right; }
 .data-provenance { margin: 20px 0 0; padding: 14px; color: var(--text-soft); background: var(--surface-2); border-radius: 8px; font-size: 11px; line-height: 1.6; }
-.validator-list article { display: grid; grid-template-columns: 34px minmax(0, 1fr) 32px; align-items: center; gap: 14px; min-height: 94px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
-.validator-list article:last-child { border-bottom: 0; }
-.validator-list article p { margin: 3px 0 6px; overflow-wrap: anywhere; font-size: 11px; }
-.validator-list article small { color: var(--text-faint); font-size: 9px; }
 .validator-rank { display: grid; place-items: center; width: 32px; height: 32px; color: var(--accent); background: var(--accent-soft); border-radius: 50%; font-size: 11px; font-weight: 700; }
+.validator-round { margin-bottom: 16px; padding: 20px 22px; }
+.validator-round > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+.validator-round > header small, .validator-cap-note small { color: var(--text-faint); font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.validator-round h2 { margin: 4px 0 0; font-size: 17px; }
+.validator-round .inline-empty { padding: 12px 0 2px; }
+.validator-round-progress > div:first-child, .validator-round-progress > div:last-child { display: flex; align-items: baseline; justify-content: space-between; gap: 20px; }
+.validator-round-progress > div:first-child strong { font-size: 24px; letter-spacing: -.03em; }
+.validator-round-progress > div:first-child span, .validator-round-progress > div:last-child { color: var(--text-faint); font-size: 10px; }
+.round-meter { height: 9px; overflow: hidden; margin: 11px 0 9px; background: var(--surface-2); border-radius: 10px; }
+.round-meter i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 45%, var(--positive))); border-radius: inherit; transition: width .5s linear; }
+.validator-cap-note { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 16px; padding: 16px 20px; border-left: 3px solid var(--line-strong); }
+.validator-cap-note--binding { border-left-color: var(--warning); background: color-mix(in srgb, var(--surface) 94%, var(--warning)); }
+.validator-cap-note > div { display: grid; gap: 3px; }
+.validator-cap-note strong { font-size: 13px; }
+.validator-cap-note span { color: var(--text-soft); font-size: 10px; }
+.validator-cap-note > a { display: inline-flex; align-items: center; flex: none; color: var(--accent); font-size: 11px; font-weight: 650; }
+.validator-directory { margin-top: 0; }
+.validator-set-tabs { display: flex; gap: 4px; padding: 12px 20px 0; }
+.validator-set-tabs button { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 13px; color: var(--text-faint); background: transparent; border-radius: 8px; cursor: pointer; }
+.validator-set-tabs button span { min-width: 22px; padding: 2px 6px; background: var(--surface-2); border-radius: 10px; font-size: 9px; text-align: center; }
+.validator-set-tabs button[aria-selected="true"] { color: var(--text); background: var(--accent-soft); font-weight: 650; }
+.validator-set-tabs button[aria-selected="true"] span { color: var(--accent); background: var(--surface); }
+.validator-toolbar { display: flex; align-items: center; gap: 12px; padding: 12px 20px 16px; border-bottom: 1px solid var(--line); }
+.validator-search { display: flex; align-items: center; gap: 8px; min-width: 220px; max-width: 430px; height: 38px; flex: 1; padding: 0 11px; color: var(--text-faint); background: var(--surface-2); border: 1px solid transparent; border-radius: 8px; }
+.validator-search:focus-within { background: var(--surface); border-color: var(--accent); }
+.validator-search input { min-width: 0; width: 100%; height: 100%; padding: 0; background: transparent; border: 0; outline: 0; }
+.validator-search input::placeholder { color: var(--text-faint); }
+.validator-toolbar .select-control select { min-width: 150px; }
+.validator-toolbar .select-control:last-child select { min-width: 72px; }
+.validator-table td { height: 66px; }
+.validator-table { min-width: 860px; }
+.validator-table td:first-child, .validator-table th:first-child { width: 72px; text-align: center; }
+.validator-table .validator-rank { margin: auto; }
+.validator-table-link { display: block; color: var(--accent); font-weight: 650; }
+.validator-cell-note { display: block; margin-top: 4px; color: var(--text-faint); font-size: 9px; }
+.validator-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.validator-row-actions > a { display: grid; place-items: center; width: 30px; height: 30px; color: var(--text-faint); border-radius: 7px; }
+.validator-row-actions > a:hover { color: var(--accent); background: var(--accent-soft); }
+.validator-identity { align-items: flex-start; }
+.validator-membership-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.validator-membership { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; margin: 0 0 16px; }
+.validator-membership > div { display: flex; min-width: 0; flex-direction: column; padding: 17px 20px; border-right: 1px solid var(--line); }
+.validator-membership > div:last-child { border-right: 0; }
+.validator-membership small { margin-bottom: 5px; color: var(--text-faint); font-size: 9px; text-transform: uppercase; }
+.validator-membership strong { margin-bottom: 3px; font-size: 14px; }
+.validator-membership span { overflow: hidden; color: var(--text-soft); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .staking-cycle-card { margin-bottom: 20px; }
 .stake-cap-disclosure { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .6fr); align-items: center; gap: 28px; margin: 0 0 20px; padding: 20px 22px; border-left: 3px solid var(--line-strong); }
 .stake-cap-disclosure--binding { border-left-color: var(--warning); background: color-mix(in srgb, var(--surface) 94%, var(--warning)); }
@@ -575,6 +617,17 @@ pre { max-width: 100%; overflow: auto; margin: 0; padding: 13px; color: var(--te
   .governance-head { align-items: flex-start; flex-direction: column; }
   .staking-pool-list article { grid-template-columns: 1fr; gap: 18px; }
   .stake-cap-disclosure { grid-template-columns: 1fr; gap: 18px; }
+  .validator-cap-note { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .validator-set-tabs { padding-inline: 12px; }
+  .validator-toolbar { align-items: stretch; flex-wrap: wrap; padding-inline: 12px; }
+  .validator-search { min-width: 100%; max-width: none; }
+  .validator-toolbar .select-control { flex: 1; justify-content: space-between; }
+  .validator-toolbar .select-control select { min-width: 0; flex: 1; }
+  .validator-round { padding: 17px 16px; }
+  .validator-round-progress > div:last-child { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .validator-membership { grid-template-columns: 1fr; }
+  .validator-membership > div { border-right: 0; border-bottom: 1px solid var(--line); }
+  .validator-membership > div:last-child { border-bottom: 0; }
   .footer-inner { align-items: flex-start; flex-direction: column; justify-content: center; padding-block: 20px; }
   .footer-inner > div { flex-direction: column; gap: 3px; }
   .search-empty { padding: 35px 18px; }

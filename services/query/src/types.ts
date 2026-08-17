@@ -182,6 +182,7 @@ export interface ValidatorSetSnapshot {
   observed_mc_seqno: number;
   observed_at: number;
   validator_set: ValidatorSetConfig | null;
+  next_validator_set?: ValidatorSetConfig | null;
   signatures: Array<{ node_id_short: string; signature: string }>;
 }
 

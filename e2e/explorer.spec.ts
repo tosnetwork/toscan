@@ -66,10 +66,26 @@ test("staking, validator history, analytics and localization are explorable", as
   await expect(page.getByRole("heading", { name: "Nominator positions" })).toBeVisible();
 
   await page.goto("/validators");
-  await page.locator('a[href^="/validator/"]').first().click();
+  await expect(page.getByRole("heading", { name: "Current validator round" })).toBeVisible();
+  await expect(page.getByText("Active validators")).toBeVisible();
+  await expect(page.getByText("Stake above the cap earns no additional reward")).toBeVisible();
+  const validatorSearch = page.getByPlaceholder("Search public key or ADNL");
+  await validatorSearch.fill("preview-validator-2");
+  await expect(page.locator(".validator-table tbody tr")).toHaveCount(1);
+  await validatorSearch.fill("");
+  await page.getByRole("tab", { name: /Current/ }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("heading", { name: "Next validator round" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Next validator set" })).toBeVisible();
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.getByRole("heading", { name: "Current validator set" })).toBeVisible();
+  await page.locator('a[href^="/validator/"]').first().focus();
+  await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/validator\//);
   await expect(page.getByRole("heading", { name: "Validator", exact: true })).toBeVisible();
   await expect(page.getByText("Voting-weight history")).toBeVisible();
+  await expect(page.getByText("Current set", { exact: true })).toBeVisible();
+  await expect(page.getByText("Capital above the effective cap earns zero marginal reward")).toBeVisible();
 
   await page.goto("/analytics");
   await expect(page.getByRole("heading", { name: "Network analytics" })).toBeVisible();

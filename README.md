@@ -14,7 +14,7 @@ The application is an original Vue 3 implementation designed specifically for TO
 | Accounts | `/address/:address` | Balance, complete indexed transaction history, wallet events, Jetton/NFT ownership, programmable authority, evidence-backed public labels and browser-private personal labels |
 | Assets | `/assets`, `/token/:address` | Position-backed Jetton/NFT discovery, observed holders, node-authoritative getters and safe metadata display |
 | Agent economy | `/economy`, `/agents`, `/agent/:address`, `/tasks`, `/task/:address`, `/disputes`, `/dispute/:address`, `/services`, `/service/:address` | Market totals, lifecycle distribution, chain-wide discovery, policy boundaries, evidence and rulings |
-| Consensus, staking and governance | `/network`, `/validators`, `/validator/:publicKey`, `/staking`, `/staking/pool/:address`, `/governance` | Health, proof-decoded validator membership and selection history, realized Elector reward cycles, pool stake/member history, code-verified Nominator Pools, observed signatures and configuration cells |
+| Consensus, staking and governance | `/network`, `/validators`, `/validator/:publicKey`, `/staking`, `/staking/pool/:address`, `/governance` | Health, current/next proof-decoded validator sets, round progress, searchable/sortable/exportable weight directory, validator selection history, realized Elector reward cycles, pool stake/member history, code-verified Nominator Pools, observed signatures and configuration cells |
 | Analytics and exports | `/analytics` plus list-page CSV actions | Chain-derived 24-hour/7-day/30-day/90-day activity series and auditable CSV exports of the currently loaded evidence window |
 
 All durable list pages use versioned opaque keyset cursors, so concurrent new blocks do not duplicate or skip older rows while a user paginates. Time-sensitive pages poll while visible and pause in background tabs. The interface ships English, Simplified Chinese and Japanese navigation/core journeys, responsive desktop/mobile layouts and accessible SVG charts. Preview data is permitted only when explicitly enabled and is always identified by a persistent banner.
@@ -123,7 +123,8 @@ Public `tosctld` reads include:
 - `/explorer/economy`, `/explorer/verifications/{address}`;
 - `/explorer/staking` (Elector election/reward state plus code-verified Nominator Pool totals);
 - `/explorer/staking/pools/{address}` (retained on-chain pool observations and current members);
-- `/explorer/validators`, `/explorer/validators/{publicKey}` (proof-decoded validator set history and observed proof signatures);
+- `/explorer/validators` (proof-decoded current/next sets, round timing and a joined network-level Elector summary);
+- `/explorer/validators/{publicKey}` (retained current/next selection observations, weight history, membership state and explicitly non-attributed reward/signature context);
 - `/explorer/analytics?window=24h|7d|30d|90d` (chain-derived activity buckets);
 - `/explorer/labels/{address}` (reviewed public address-label evidence);
 - `/explorer/contracts/{kind}`, `/explorer/contracts/{kind}/{address}`;
@@ -134,13 +135,13 @@ Page components depend only on normalized models in `src/api/`; transport and ch
 ## Evidence boundaries
 
 1. The index is complete only after every shard checkpoint reaches its reported head. TOSCAN displays this lag instead of claiming completeness early.
-2. Validator membership/weight comes from proof-extracted configuration parameter #34. Proof-link signer counts are separate finalized evidence, not live catchain/gossip telemetry.
+2. Current and next validator membership/weight come from proof-extracted configuration parameters #34 and #36. Proof-link signer counts are separate finalized network evidence, not live catchain/gossip telemetry or per-validator uptime.
 3. Token metadata is untrusted contract data. Remote image references are shown as text and are not automatically loaded.
 4. An observed asset holder is a node-verified position, not a balance claim; live balances remain contract-getter data.
 5. A “Build matched” badge proves deployed code BOC equality with the submitted build artifact. Source reproducibility still depends on the displayed compiler, commit, digest and build instructions.
 6. Off-chain AI execution is not inferred from a contract status. TOSCAN distinguishes chain-enforced commercial state from optional evidence or attestation commitments.
 7. Staking APR/APY is an annualization of rewards already recorded by Elector. It is historical evidence, not a promised future or marginal deposit return. The Elector-derived `surplus_earns` flag is the UI authority: when false, stake above `effective_stake_cap` is returned and earns no additional reward. Pool contracts enter the view only after their deployed code hash matches the canonical TOS Nominator Pool code.
-8. Validator-set membership, weight and observed proof signatures are attributable to a validator public key. Individual validator rewards are not exposed until the chain supplies equally attributable evidence; TOSCAN does not divide aggregate rewards by weight and present that estimate as fact.
+8. Validator-set membership, ADNL identity and weight are attributable to a validator public key. The current projection retains proof-link signatures only as network-level evidence and does not claim a proved public-key-to-signature mapping. Individual validator rewards are not exposed until the chain supplies an attributable payout ledger; TOSCAN does not divide aggregate rewards by weight and present that estimate as fact.
 9. CSV export contains only the currently loaded evidence window and names the export time; it is not silently presented as an all-history dump.
 10. TOSCAN is read-only. It deliberately contains no wallet connection, signing or transaction-submission path.
 

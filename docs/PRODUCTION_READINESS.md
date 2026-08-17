@@ -18,7 +18,7 @@ This document is the acceptance contract for the production-hardening (P1) and p
 | Capability | User-visible result | Evidence boundary |
 | --- | --- | --- |
 | Staking depth | Reward-rate history charts, Nominator Pool detail, members, stake history and CSV | Pools require canonical code-hash classification; network rewards are not presented as pool payouts |
-| Validator depth | Current proof-decoded set, validator detail, selection/weight history, proof-signature context and CSV | Individual rewards remain explicitly unavailable until attributable chain evidence exists |
+| Validator depth | Current/next proof-decoded sets, live round progress, Elector summary, searchable/sortable/paginated directory, detail membership, selection/weight history and CSV | Proof signatures and rewards stay network-level until a public-key signer mapping and validator payout ledger are independently provable; country/version/wallet/uptime are not invented |
 | Network analytics | 24-hour, 7-day, 30-day and 90-day block/transaction/fee trends plus contract/asset composition | Buckets are derived only from committed canonical projection data; missing intervals are not interpolated |
 | Address labels | Reviewed public evidence labels, code-hash-derived labels and private personal browser labels | Public imports are offline/transactional and source-attributed; personal labels never leave local storage |
 | Data portability | CSV actions on blocks, transactions, assets, agents, staking, pools, validators and analytics | Exports identify and contain the currently loaded evidence window, not an implied full-history dump |

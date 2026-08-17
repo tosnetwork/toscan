@@ -133,8 +133,10 @@ export class Projector {
   }
 
   private async syncValidators(headSeqno: number): Promise<void> {
-    const [config, proof] = await Promise.all([
+    const [config, nextConfig, proof] = await Promise.all([
       this.rpc.call<{ validator_set?: ValidatorSetConfig }>("getConfigParam", { param: 34, seqno: headSeqno }),
+      this.rpc.call<{ validator_set?: ValidatorSetConfig }>("getConfigParam", { param: 36, seqno: headSeqno })
+        .catch(() => null),
       this.rpc.call<{ signatures?: Array<{ node_id_short: string; signature: string }> }>(
         "getMasterchainBlockSignatures",
         { seqno: headSeqno },
@@ -144,6 +146,7 @@ export class Projector {
       observed_mc_seqno: headSeqno,
       observed_at: Math.floor(Date.now() / 1000),
       validator_set: config.validator_set ?? null,
+      next_validator_set: nextConfig?.validator_set ?? null,
       signatures: proof.signatures ?? [],
     });
   }

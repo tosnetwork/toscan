@@ -405,13 +405,44 @@ export function buildServer(
   });
 
   app.get("/explorer/validators", async (_request, reply) => {
-    const latest = await db.pool.query(
-      "SELECT observed_mc_seqno,observed_at,data FROM explorer_validator_sets ORDER BY observed_mc_seqno DESC LIMIT 1",
-    );
+    const [latest, overview, cycle] = await Promise.all([
+      db.pool.query(
+        "SELECT observed_mc_seqno,observed_at,data FROM explorer_validator_sets ORDER BY observed_mc_seqno DESC LIMIT 1",
+      ),
+      db.pool.query("SELECT data,updated_at FROM explorer_staking_overview WHERE singleton=true"),
+      db.pool.query(
+        `SELECT election_id::text,unfreeze_at::text,duration_seconds::text,total_stake::text,
+                rewards::text,reward_rate,annualized_apr,compounded_apy,validator_count,
+                vset_hash,observed_at::text
+         FROM explorer_staking_cycles ORDER BY election_id DESC LIMIT 1`,
+      ),
+    ]);
     if (!latest.rows[0]) {
       return reply.code(503).send({ ok: false, error: { message: "validator projection has not completed" } });
     }
-    return { ok: true, result: latest.rows[0].data };
+    const snapshot = latest.rows[0].data as Record<string, unknown>;
+    const latestCycle = cycle.rows[0] ? {
+      ...cycle.rows[0],
+      election_id: Number(cycle.rows[0].election_id),
+      unfreeze_at: Number(cycle.rows[0].unfreeze_at),
+      duration_seconds: Number(cycle.rows[0].duration_seconds),
+      observed_at: Number(cycle.rows[0].observed_at),
+    } : null;
+    const staking = overview.rows[0] ? {
+      current_election_available: Boolean(overview.rows[0].data.current_election_available),
+      active_election_id: Number(overview.rows[0].data.active_election_id ?? 0),
+      election_closes_at: Number(overview.rows[0].data.election_closes_at ?? 0),
+      current_election_stake: String(overview.rows[0].data.current_election_stake ?? "0"),
+      current_participants: Number(overview.rows[0].data.current_participants ?? 0),
+      latest_cycle: latestCycle,
+      effective_stake: overview.rows[0].data.effective_stake ?? null,
+    } : null;
+    return { ok: true, result: {
+      ...snapshot,
+      observed_mc_seqno: Number(snapshot.observed_mc_seqno ?? latest.rows[0].observed_mc_seqno),
+      observed_at: Number(snapshot.observed_at ?? latest.rows[0].observed_at),
+      staking,
+    } };
   });
 
   app.get<{ Params: { publicKey: string } }>("/explorer/validators/:publicKey", async (request, reply) => {
@@ -419,7 +450,7 @@ export function buildServer(
     if (!/^[A-Za-z0-9_+\-/=]{8,256}$/.test(publicKey)) {
       throw Object.assign(new Error("invalid validator public key"), { statusCode: 400 });
     }
-    const [sets, cycles] = await Promise.all([
+    const [sets, cycles, overview] = await Promise.all([
       db.pool.query("SELECT observed_mc_seqno,observed_at,data FROM explorer_validator_sets ORDER BY observed_mc_seqno DESC LIMIT 2048"),
       db.pool.query(
         `SELECT election_id::text,unfreeze_at::text,duration_seconds::text,total_stake::text,
@@ -427,27 +458,47 @@ export function buildServer(
                 vset_hash,observed_at::text
          FROM explorer_staking_cycles ORDER BY election_id DESC LIMIT 128`,
       ),
+      db.pool.query("SELECT data FROM explorer_staking_overview WHERE singleton=true"),
     ]);
     const history = sets.rows.flatMap((row) => {
       const snapshot = row.data as {
         observed_mc_seqno: number;
         observed_at: number;
         validator_set?: { total_weight?: string; validators?: Array<Record<string, unknown>> } | null;
+        next_validator_set?: { total_weight?: string; validators?: Array<Record<string, unknown>> } | null;
       };
-      const member = snapshot.validator_set?.validators?.find((candidate) => candidate.public_key === publicKey);
+      const currentMember = snapshot.validator_set?.validators?.find((candidate) => candidate.public_key === publicKey);
+      const nextMember = snapshot.next_validator_set?.validators?.find((candidate) => candidate.public_key === publicKey);
+      const member = currentMember ?? nextMember;
       return member ? [{
         observed_mc_seqno: snapshot.observed_mc_seqno ?? row.observed_mc_seqno,
         observed_at: snapshot.observed_at ?? Number(row.observed_at),
-        total_weight: snapshot.validator_set?.total_weight ?? "0",
+        total_weight: currentMember ? snapshot.validator_set?.total_weight ?? "0" : snapshot.next_validator_set?.total_weight ?? "0",
+        selection_phase: currentMember ? "current" : "next",
         ...member,
       }] : [];
     });
     if (!history.length) {
       return reply.code(404).send({ ok: false, error: { message: "validator is not present in retained set history" } });
     }
+    const latest = sets.rows[0]?.data as {
+      observed_mc_seqno?: number;
+      validator_set?: { utime_until?: number; validators?: Array<Record<string, unknown>> } | null;
+      next_validator_set?: { utime_since?: number; utime_until?: number; validators?: Array<Record<string, unknown>> } | null;
+      signatures?: Array<Record<string, unknown>>;
+    } | undefined;
+    const currentlySelected = Boolean(latest?.validator_set?.validators?.some((candidate) => candidate.public_key === publicKey));
+    const selectedForNextSet = Boolean(latest?.next_validator_set?.validators?.some((candidate) => candidate.public_key === publicKey));
     return { ok: true, result: {
       public_key: publicKey,
       current: history[0],
+      currently_selected: currentlySelected,
+      selected_for_next_set: selectedForNextSet,
+      current_set_valid_until: latest?.validator_set?.utime_until ?? null,
+      next_set_valid_from: latest?.next_validator_set?.utime_since ?? null,
+      next_set_valid_until: latest?.next_validator_set?.utime_until ?? null,
+      latest_observed_mc_seqno: latest?.observed_mc_seqno ?? history[0]?.observed_mc_seqno,
+      observed_signature_count: latest?.signatures?.length ?? 0,
       selected_sets: history.length,
       first_observed_at: history.at(-1)?.observed_at ?? history[0]?.observed_at,
       last_observed_at: history[0]?.observed_at,
@@ -459,7 +510,9 @@ export function buildServer(
         duration_seconds: Number(row.duration_seconds),
         observed_at: Number(row.observed_at),
       })),
+      effective_stake: overview.rows[0]?.data?.effective_stake ?? null,
       reward_attribution_available: false,
+      signature_attribution_available: false,
     } };
   });
 

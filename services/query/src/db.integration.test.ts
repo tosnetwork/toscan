@@ -195,6 +195,7 @@ suite("PostgreSQL projection", () => {
       data: { ...poolData, total_balance_at_risk: "7100000000" },
     }]);
     const publicKey = "validator-public-key-proof";
+    const nextPublicKey = "validator-next-only-proof";
     for (const seqno of [500, 501]) {
       await db.recordValidatorSet({
         observed_mc_seqno: seqno,
@@ -204,7 +205,15 @@ suite("PostgreSQL projection", () => {
           total: 1, main: 1, total_weight: "100",
           validators: [{ public_key: publicKey, adnl_address: "adnl-proof", weight: "100", cumulative_weight: "100" }],
         },
-        signatures: [],
+        next_validator_set: {
+          utime_since: 1_700_100_000, utime_until: 1_700_200_000,
+          total: 2, main: 2, total_weight: "200",
+          validators: [
+            { public_key: publicKey, adnl_address: "adnl-proof", weight: "100", cumulative_weight: "100" },
+            { public_key: nextPublicKey, adnl_address: "adnl-next", weight: "100", cumulative_weight: "200" },
+          ],
+        },
+        signatures: [{ node_id_short: "proof-signer", signature: "proof-signature" }],
       });
     }
     const app = buildServer(db, new Metrics());
@@ -216,11 +225,34 @@ suite("PostgreSQL projection", () => {
       effective_stake: { max_stake_factor_raw: 65_536, max_stake_factor: 1, effective_stake_cap: "10000000000000", surplus_earns: false },
     });
     const validators = await app.inject("/explorer/validators");
-    expect(validators.json().result).toMatchObject({ observed_mc_seqno: 501 });
+    expect(validators.json().result).toMatchObject({
+      observed_mc_seqno: 501,
+      validator_set: { total: 1 },
+      next_validator_set: { total: 2 },
+      staking: {
+        current_election_available: false,
+        current_election_stake: "9000000000",
+        latest_cycle: { election_id: 100, rewards: "80000000" },
+        effective_stake: { max_stake_factor: 1, surplus_earns: false },
+      },
+    });
     const validator = await app.inject(`/explorer/validators/${encodeURIComponent(publicKey)}`);
     expect(validator.json().result).toMatchObject({
-      public_key: publicKey, selected_sets: 2, reward_attribution_available: false,
-      history: [{ observed_mc_seqno: 501 }, { observed_mc_seqno: 500 }],
+      public_key: publicKey, currently_selected: true, selected_for_next_set: true,
+      selected_sets: 2, observed_signature_count: 1,
+      reward_attribution_available: false, signature_attribution_available: false,
+      effective_stake: { max_stake_factor: 1, surplus_earns: false },
+      history: [{ observed_mc_seqno: 501, selection_phase: "current" }, { observed_mc_seqno: 500 }],
+    });
+    const nextValidator = await app.inject(`/explorer/validators/${encodeURIComponent(nextPublicKey)}`);
+    expect(nextValidator.statusCode).toBe(200);
+    expect(nextValidator.json().result).toMatchObject({
+      public_key: nextPublicKey, currently_selected: false, selected_for_next_set: true,
+      selected_sets: 2,
+      history: [
+        { observed_mc_seqno: 501, selection_phase: "next", adnl_address: "adnl-next" },
+        { observed_mc_seqno: 500, selection_phase: "next", adnl_address: "adnl-next" },
+      ],
     });
     await app.close();
   });

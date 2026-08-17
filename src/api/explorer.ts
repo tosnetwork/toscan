@@ -43,8 +43,8 @@ import type {
   TransactionSummary,
   TokenData,
   ValidatorOverview,
+  ValidatorDashboard,
   ValidatorDetail,
-  ValidatorSetSnapshot,
   WalletEvent,
 } from "./types";
 import {
@@ -626,9 +626,9 @@ function previewRewardCycles(): StakingCycle[] {
     duration_seconds: 86_400,
     total_stake: String(9_000_000_000_000 + index * 50_000_000_000),
     rewards: String(90_000_000_000 + index * 500_000_000),
-    reward_rate: 0.01 + index * 0.00008,
-    annualized_apr: 3.65 + index * 0.0292,
-    compounded_apy: 36.78 + index * 0.5,
+    reward_rate: 0.00046 + index * 0.000002,
+    annualized_apr: 0.1679 + index * 0.00073,
+    compounded_apy: 0.1829 + index * 0.0009,
     validator_count: 3,
     vset_hash: `preview-vset-${1200 - index}`,
     observed_at: now - index * 86_400,
@@ -668,17 +668,44 @@ export async function getNominatorPoolDetail(address: string): Promise<Nominator
   );
 }
 
-export async function getProjectedValidators(): Promise<ValidatorSetSnapshot> {
+export async function getProjectedValidators(): Promise<ValidatorDashboard> {
   return withPreview(
-    () => serviceApi.get<{ ok: boolean; result: ValidatorSetSnapshot }>("/explorer/validators")
+    () => serviceApi.get<{ ok: boolean; result: ValidatorDashboard }>("/explorer/validators")
       .then((value) => value.result),
     async () => {
       const live = await getValidatorOverview();
+      const cycles = previewRewardCycles();
+      const current = live.validator_set;
+      const next = current ? {
+        ...current,
+        utime_since: current.utime_until,
+        utime_until: current.utime_until + Math.max(1, current.utime_until - current.utime_since),
+        total: Math.max(0, current.total - 1),
+        main: Math.max(0, current.main - 1),
+        total_weight: String(BigInt(current.total_weight) - BigInt(current.validators.at(-1)?.weight ?? "0")),
+        validators: current.validators.slice(0, -1),
+      } : null;
       return {
         observed_mc_seqno: live.id.seqno,
         observed_at: Math.floor(Date.now() / 1_000),
-        validator_set: live.validator_set,
+        validator_set: current,
+        next_validator_set: next,
         signatures: live.signatures,
+        staking: {
+          current_election_available: true,
+          active_election_id: 1201,
+          election_closes_at: current?.utime_until ?? 0,
+          current_election_stake: "9300000000000",
+          current_participants: current?.total ?? 0,
+          latest_cycle: cycles[0] ?? null,
+          effective_stake: {
+            max_stake_factor_raw: 65_536,
+            max_stake_factor: 1,
+            smallest_elected_stake: "10000000000000",
+            effective_stake_cap: "10000000000000",
+            surplus_earns: false,
+          },
+        },
       };
     },
   );
@@ -703,12 +730,21 @@ export async function getValidatorDetail(publicKey: string): Promise<ValidatorDe
       return {
         public_key: publicKey,
         current: history[0]!,
+        currently_selected: true,
+        selected_for_next_set: Boolean(current.next_validator_set?.validators.some((candidate) => candidate.public_key === publicKey)),
+        current_set_valid_until: current.validator_set?.utime_until ?? null,
+        next_set_valid_from: current.next_validator_set?.utime_since ?? null,
+        next_set_valid_until: current.next_validator_set?.utime_until ?? null,
+        latest_observed_mc_seqno: current.observed_mc_seqno,
+        observed_signature_count: current.signatures.length,
         selected_sets: history.length,
         first_observed_at: history.at(-1)?.observed_at ?? current.observed_at,
         last_observed_at: current.observed_at,
         history,
         network_reward_cycles: previewRewardCycles(),
+        effective_stake: current.staking?.effective_stake ?? null,
         reward_attribution_available: false,
+        signature_attribution_available: false,
       };
     },
   );

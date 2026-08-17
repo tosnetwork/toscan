@@ -427,13 +427,29 @@ export interface ValidatorSetSnapshot {
   observed_mc_seqno: number;
   observed_at: number;
   validator_set: ValidatorSetConfig | null;
+  next_validator_set?: ValidatorSetConfig | null;
   signatures: BlockSignature[];
+}
+
+export interface ValidatorStakingSummary {
+  current_election_available: boolean;
+  active_election_id: number;
+  election_closes_at: number;
+  current_election_stake: string;
+  current_participants: number;
+  latest_cycle: StakingCycle | null;
+  effective_stake: EffectiveStakePolicy | null;
+}
+
+export interface ValidatorDashboard extends ValidatorSetSnapshot {
+  staking: ValidatorStakingSummary | null;
 }
 
 export interface ValidatorHistoryPoint {
   observed_mc_seqno: number;
   observed_at: number;
   total_weight: string;
+  selection_phase?: "current" | "next";
   public_key: string;
   adnl_address: string;
   weight: string;
@@ -443,12 +459,21 @@ export interface ValidatorHistoryPoint {
 export interface ValidatorDetail {
   public_key: string;
   current: ValidatorHistoryPoint;
+  currently_selected: boolean;
+  selected_for_next_set: boolean;
+  current_set_valid_until: number | null;
+  next_set_valid_from: number | null;
+  next_set_valid_until: number | null;
+  latest_observed_mc_seqno: number;
+  observed_signature_count: number;
   selected_sets: number;
   first_observed_at: number;
   last_observed_at: number;
   history: ValidatorHistoryPoint[];
   network_reward_cycles: StakingCycle[];
+  effective_stake: EffectiveStakePolicy | null;
   reward_attribution_available: false;
+  signature_attribution_available: false;
 }
 
 export interface NetworkAnalytics {

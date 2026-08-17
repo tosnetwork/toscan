@@ -42,7 +42,9 @@ test("browser follows the real chain through PostgreSQL projection and node exec
 
   await page.goto("/validators");
   await expect(page.getByRole("heading", { name: "Validators" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Current validator round" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Current validator set" })).toBeVisible();
+  await expect(page.getByPlaceholder("Search public key or ADNL")).toBeVisible();
   await expect(page.getByText("Evidence boundary.")).toBeVisible();
   await page.locator('a[href^="/validator/"]').first().click();
   await expect(page.getByText("Voting-weight history")).toBeVisible();
