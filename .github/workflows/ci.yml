@@ -12,7 +12,9 @@ env:
   # The TOS revision this repository's release gate is verified against.
   # Bumping it is a decision about what the gate means, so it is made here,
   # once, in the open -- not implied by whatever TOS happened to merge.
-  TOS_REF: ef15b406b
+  # Must be a full 40-character SHA: actions/checkout treats a short one as a
+  # branch name and fetches a ref pattern that matches nothing.
+  TOS_REF: ef15b406b0571205e7793a353faf2000bdfec866
 
 jobs:
   quality:
