@@ -10,8 +10,15 @@ test("browser follows the real chain through PostgreSQL projection and node exec
 
   await page.goto("/network");
   await expect(page.getByText("Fully caught up")).toBeVisible();
+  // Assert the count is positive rather than that the text differs from
+  // "0 transactions". toContainText matches substrings, and every healthy count
+  // ending in a zero -- 790, 1000 -- contains "0 transactions", so the negative
+  // form fails on exactly the outcome it is meant to accept.
   const indexedTransactions = page.locator(".index-health > div").first().getByText(/transactions/);
-  await expect(indexedTransactions).not.toContainText("0 transactions");
+  await expect(indexedTransactions).toBeVisible();
+  const indexedText = (await indexedTransactions.innerText()).trim();
+  const indexedCount = Number.parseInt(indexedText.replace(/[^0-9]/g, ""), 10);
+  expect(indexedCount, `indexer reported "${indexedText}"`).toBeGreaterThan(0);
 
   await page.goto("/transactions");
   const firstTransaction = page.locator('main a[href^="/tx/"]').first();
