@@ -12,7 +12,7 @@ env:
   # The TOS revision this repository's release gate is verified against.
   # Bumping it is a decision about what the gate means, so it is made here,
   # once, in the open -- not implied by whatever TOS happened to merge.
-  TOS_REF: e020fcf09
+  TOS_REF: ef15b406b
 
 jobs:
   quality:
@@ -162,6 +162,7 @@ jobs:
           --require browser-command
           --require staking-projection
           --require validator-set-decoding
+          --require effective-stake-cap
           --capabilities
       - name: Real-chain browser release gate
         working-directory: tos
@@ -171,6 +172,7 @@ jobs:
           uv run python scripts/toscan-explorer-e2e.py
           --require browser-command
           --require staking-projection
+          --require effective-stake-cap
           --browser-command "cd .. && python3 scripts/real-chain-browser-gate.py"
       - uses: actions/upload-artifact@v4
         if: failure()
