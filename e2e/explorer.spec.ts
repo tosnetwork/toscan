@@ -90,7 +90,8 @@ test("global search and keyboard shortcut resolve canonical identities", async (
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.keyboard.press("/");
-  const search = page.locator('input[aria-label="Search TOS Network"]:visible').first();
+  const search = page.locator('input[aria-label="Search TOS Network"]:focus');
+  await expect(search).toHaveCount(1);
   await expect(search).toBeFocused();
   await search.fill(address);
   await search.press("Enter");
