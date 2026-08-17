@@ -1,0 +1,10 @@
+{
+  "name": "TOSCAN — TOS Network Explorer",
+  "short_name": "TOSCAN",
+  "description": "Read-only evidence explorer for TOS Network.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eceef0",
+  "theme_color": "#eceef0",
+  "icons": [{ "src": "/tos-logo.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

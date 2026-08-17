@@ -2,7 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
 import { TosRpc } from "./rpc.js";
-import type { ContractListResponse, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, TokenData, ValidatorSetConfig } from "./types.js";
+import type { ContractListResponse, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, TokenData, ValidatorSetConfig } from "./types.js";
 
 export const CONTRACT_KINDS = [
   "agent_account",
@@ -82,6 +82,7 @@ export class Projector {
       await this.syncContracts();
       await this.syncStaking();
       await this.syncValidators(headSeqno);
+      await this.syncGovernance(headSeqno);
       this.lastContractSync = Date.now();
     }
     await this.syncAssets();
@@ -149,6 +150,23 @@ export class Projector {
       next_validator_set: nextConfig?.validator_set ?? null,
       signatures: proof.signatures ?? [],
     });
+  }
+
+  private async syncGovernance(headSeqno: number): Promise<void> {
+    const ids = [0, 8, 34, 36, 40];
+    const parameters = await Promise.all(ids.map(async (id) => {
+      const request = this.rpc.call<{ config?: { bytes?: string } }>(
+        "getConfigParam", { param: id, seqno: headSeqno },
+      );
+      const result = id === 36 ? await request.catch(() => null) : await request;
+      return { id, bytes: result?.config?.bytes ?? null };
+    }));
+    const snapshot: GovernanceSnapshot = {
+      observed_mc_seqno: headSeqno,
+      observed_at: Math.floor(Date.now() / 1000),
+      parameters,
+    };
+    await this.db.recordGovernanceSnapshot(snapshot);
   }
 
   private assetKind(data: TokenData): ExplorerAsset["kind"] | null {

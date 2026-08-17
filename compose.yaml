@@ -44,6 +44,7 @@ services:
       context: .
       args:
         VITE_TOS_NETWORK: ${VITE_TOS_NETWORK:-mainnet}
+        VITE_PUBLIC_ORIGIN: ${VITE_PUBLIC_ORIGIN:-http://localhost:4173}
     image: toscan:local
     ports:
       - "4173:8080"

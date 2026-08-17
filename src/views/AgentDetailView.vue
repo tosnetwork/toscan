@@ -6,6 +6,7 @@ import CopyButton from "@/components/CopyButton.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
+import WatchButton from "@/components/WatchButton.vue";
 import { getIndexedContract } from "@/api/explorer";
 import type { Agent } from "@/api/types";
 import { useAsyncData } from "@/composables/useAsyncData";
@@ -18,13 +19,14 @@ const { data, loading, error, refresh } = useAsyncData(
   [address],
   { refreshInterval: 15_000 },
 );
+const fingerprint = computed(() => data.value ? JSON.stringify([data.value.updated_at, data.value.status, data.value.data]) : null);
 </script>
 
 <template>
   <div class="container page-container">
     <nav class="breadcrumbs" aria-label="Breadcrumb"><RouterLink to="/agents">Agents</RouterLink><AppIcon name="chevron" :size="13" /><span>{{ compact(address) }}</span></nav>
     <PageHeading title="Agent Account" description="Persistent on-chain identity, controller and autonomous spending policy." eyebrow="AI economy">
-      <StatusBadge :status="data?.status ?? 'indexed'" />
+      <div class="heading-actions"><StatusBadge :status="data?.status ?? 'indexed'" /><WatchButton kind="agent" :identity="address" label="Agent Account" :route="`/agent/${address}`" :fingerprint="fingerprint" /></div>
     </PageHeading>
     <LoadState :loading="loading" :error="error" @retry="refresh">
       <template v-if="data">

@@ -18,14 +18,18 @@ import type {
   ExplorerBlock,
   ExplorerAsset,
   ExplorerAssetDetail,
+  ExplorerAssetHolder,
+  ExplorerAssetPositionEvent,
   ExplorerContract,
   ExplorerIndexStatus,
   ExplorerMessage,
   ExplorerSearchHit,
+  ExplorerSearchSuggestion,
   ExplorerTransaction,
   EconomyStats,
   HomeData,
   GovernanceConfigProof,
+  GovernanceSnapshot,
   JettonPosition,
   ListResponse,
   MasterchainInfo,
@@ -884,6 +888,38 @@ export async function getContractVerification(address: string): Promise<Contract
   ).then((response) => response.result), null);
 }
 
+export async function getContractVerificationsPage(offset = 0, limit = 50): Promise<Page<ContractVerification>> {
+  return withPreview(
+    async () => page(await serviceApi.get<ListResponse<ContractVerification>>("/explorer/verifications", { offset, limit })),
+    () => ({ items: [], total: 0, offset, limit, complete: true }),
+  );
+}
+
+export async function getSearchSuggestions(query: string, limit = 8): Promise<ExplorerSearchSuggestion[]> {
+  if (query.trim().length < 2) return [];
+  return withPreview(
+    () => serviceApi.get<{ ok: boolean; result: ExplorerSearchSuggestion[] }>("/explorer/search/suggest", {
+      q: query.trim(), limit,
+    }).then((value) => value.result),
+    () => {
+      const needle = query.trim().toLowerCase();
+      const suggestions: ExplorerSearchSuggestion[] = [];
+      for (const contract of [...previewAgents, ...previewTasks, ...previewServices, ...previewDisputes]) {
+        if (!contract.address.toLowerCase().includes(needle)) continue;
+        const kind = "owner" in contract ? "agent" : "budget" in contract ? "task" : "price_per_call" in contract ? "service" : "dispute";
+        suggestions.push({
+          kind: "contract",
+          title: kind === "task" && "name" in contract ? contract.name ?? "Task" : `${kind[0]!.toUpperCase()}${kind.slice(1)}`,
+          subtitle: "Preview contract",
+          value: contract.address,
+          route: `/${kind}/${contract.address}`,
+        });
+      }
+      return suggestions.slice(0, limit);
+    },
+  );
+}
+
 export async function getToken(address: string, previewHint?: string): Promise<TokenData> {
   return withPreview(
     () => rpc.call<TokenData>("getTokenData", { address }),
@@ -917,6 +953,58 @@ export async function getAssetsPage(
     const filtered = positions.filter((asset) => !kind || asset.kind === kind);
     return { items: filtered.slice(offset, offset + limit), total: filtered.length, offset, limit, complete: true };
   });
+}
+
+export async function getAssetHoldersPage(address: string, offset = 0, limit = 50): Promise<Page<ExplorerAssetHolder>> {
+  return withPreview(
+    async () => page(await serviceApi.get<ListResponse<ExplorerAssetHolder>>(
+      `/explorer/assets/${encodeURIComponent(address)}/holders`, { offset, limit },
+    )),
+    () => {
+      const account = getPreviewAccount(previewAddress);
+      const holders: ExplorerAssetHolder[] = account.jettons.filter((position) => position.jetton_master === address).map((position) => ({
+        owner_address: previewAddress, position_address: position.jetton_wallet, kind: "jetton", last_lt: position.last_lt,
+      }));
+      return { items: holders.slice(offset, offset + limit), total: holders.length, offset, limit, complete: true };
+    },
+  );
+}
+
+export async function getCollectionItemsPage(address: string, offset = 0, limit = 50): Promise<Page<ExplorerAsset>> {
+  return withPreview(
+    async () => page(await serviceApi.get<ListResponse<ExplorerAsset>>(
+      `/explorer/assets/${encodeURIComponent(address)}/items`, { offset, limit },
+    )),
+    () => ({ items: [], total: 0, offset, limit, complete: true }),
+  );
+}
+
+export async function getAssetActivityPage(
+  offset = 0,
+  limit = 50,
+  assetAddress?: string,
+  kind?: "jetton" | "nft_item",
+): Promise<Page<ExplorerAssetPositionEvent>> {
+  return withPreview(
+    async () => page(await serviceApi.get<ListResponse<ExplorerAssetPositionEvent>>("/explorer/assets/activity", {
+      offset, limit, asset: assetAddress, kind,
+    })),
+    () => ({ items: [], total: 0, offset, limit, complete: true }),
+  );
+}
+
+export async function getGovernanceHistory(offset = 0, limit = 50): Promise<Page<GovernanceSnapshot>> {
+  return withPreview(
+    async () => page(await serviceApi.get<ListResponse<GovernanceSnapshot>>("/explorer/governance/history", { offset, limit })),
+    () => ({
+      items: [{
+        observed_mc_seqno: previewBlocks[0]?.seqno ?? 0,
+        observed_at: previewBlocks[0]?.time ?? Math.floor(Date.now() / 1000),
+        parameters: [0, 8, 34, 36, 40].map((id) => ({ id, bytes: id === 36 ? null : "te6cckEBAQEA" })),
+      }],
+      total: 1, offset, limit, complete: true,
+    }),
+  );
 }
 
 export async function getIndexedAsset(address: string): Promise<ExplorerAssetDetail | null> {

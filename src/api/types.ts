@@ -504,6 +504,12 @@ export interface GovernanceConfigProof {
   }>;
 }
 
+export interface GovernanceSnapshot {
+  observed_mc_seqno: number;
+  observed_at: number;
+  parameters: Array<{ id: number; bytes: string | null }>;
+}
+
 export interface ExplorerBlock {
   workchain: number;
   shard: string;
@@ -559,6 +565,20 @@ export interface ExplorerAssetDetail extends ExplorerAsset {
   limit: number;
 }
 
+export interface ExplorerAssetHolder {
+  owner_address: string;
+  position_address: string | null;
+  kind: "jetton" | "nft_item";
+  last_lt: string;
+}
+
+export interface ExplorerAssetPositionEvent extends ExplorerAssetHolder {
+  id: number;
+  asset_address: string;
+  event_type: "observed" | "removed";
+  observed_at: number;
+}
+
 export interface ContractVerification {
   address: string;
   compiler: string;
@@ -570,6 +590,14 @@ export interface ContractVerification {
   verified_at: number;
   observed_mc_seqno: number;
   manifest: Record<string, unknown>;
+}
+
+export interface ExplorerSearchSuggestion {
+  kind: "label" | "contract" | "asset" | "transaction" | "message" | "block" | "verification";
+  title: string;
+  subtitle: string;
+  value: string;
+  route: string;
 }
 
 export type ExplorerSearchHit =

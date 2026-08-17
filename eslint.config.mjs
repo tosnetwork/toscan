@@ -13,6 +13,10 @@ export default defineConfigWithVueTs(
     languageOptions: { globals: globals.node },
   },
   {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: globals.node },
+  },
+  {
     rules: {
       "vue/multi-word-component-names": "off",
       "vue/max-attributes-per-line": "off",

@@ -4,11 +4,11 @@
 
 TOSCAN's Staking page must be reproducible from TOS chain evidence. It must not publish an unexplained APY value, treat an arbitrary account as a pool, or imply that a historical return is guaranteed.
 
-## TONViewer reference analysis
+## Reference design analysis
 
-The public TONViewer Rewards page was inspected on 2026-08-17 as a product reference, not as source code to copy. Its current server-rendered configuration names `https://tonapi.io` as the data host. The loaded page bundle then combines three data paths:
+A mature public staking explorer commonly combines three data paths:
 
-1. a TonAPI rewards-statistics request supplies the historical total-stake and APY series;
+1. an indexed rewards-statistics service supplies the historical total-stake and APY series;
 2. Elector account transactions, Elector state and network configuration parameters supply election timing, participants, stake and reward evidence;
 3. deterministic browser code computes cycle reward ratios and annualized APR/APY, and projects the current cycle.
 
@@ -79,9 +79,6 @@ The query service stores one current overview row and an upserted row per comple
 - `surplus_earns` is the authoritative UI predicate for marginal-reward disclosure; when false, capital above the effective cap has zero marginal yield.
 - TOSCAN is read-only; joining, depositing, withdrawing and signing remain wallet/operator workflows outside the explorer.
 
-## Reference material
+## Implementation material
 
-- TONViewer Rewards: <https://tonviewer.com/rewards>
-- TonAPI: <https://tonapi.io/>
-- TON staking overview: <https://docs.ton.org/nodes/staking/overview>
-- TON nominator pool contracts: <https://docs.ton.org/nodes/staking/nominator-pools>
+The implementation authority is the TOS node, Elector state, canonical Nominator Pool code shipped by TOS, and the read-only explorer contracts documented in this repository.

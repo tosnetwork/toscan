@@ -3,7 +3,7 @@ import type { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
 import { Projector } from "./projector.js";
 import type { TosRpc } from "./rpc.js";
-import type { ValidatorSetConfig, ValidatorSetSnapshot } from "./types.js";
+import type { GovernanceSnapshot, ValidatorSetConfig, ValidatorSetSnapshot } from "./types.js";
 
 function validatorSet(key: string, start: number): ValidatorSetConfig {
   return {
@@ -61,5 +61,53 @@ describe("validator projection", () => {
     await (projector as unknown as { syncValidators(seqno: number): Promise<void> }).syncValidators(78);
 
     expect(snapshots[0]).toMatchObject({ observed_mc_seqno: 78, next_validator_set: null });
+  });
+});
+
+describe("governance projection", () => {
+  it("retains only the raw proof-backed configuration commitments exposed by the node", async () => {
+    const snapshots: GovernanceSnapshot[] = [];
+    const rpc = {
+      call: async (_method: string, params: { param?: number }) => {
+        if (params.param === 36) throw new Error("optional config absent");
+        return { config: { bytes: `cell-${params.param}` } };
+      },
+    } as unknown as TosRpc;
+    const db = { recordGovernanceSnapshot: async (snapshot: GovernanceSnapshot) => { snapshots.push(snapshot); } } as unknown as ProjectionDb;
+    const projector = new Projector(db, rpc, new Metrics(), {
+      sourceUrl: "http://source", batchSize: 1, pollMs: 1, contractSyncMs: 1,
+    });
+
+    await (projector as unknown as { syncGovernance(seqno: number): Promise<void> }).syncGovernance(79);
+
+    expect(snapshots).toHaveLength(1);
+    expect(snapshots[0]).toMatchObject({
+      observed_mc_seqno: 79,
+      parameters: [
+        { id: 0, bytes: "cell-0" },
+        { id: 8, bytes: "cell-8" },
+        { id: 34, bytes: "cell-34" },
+        { id: 36, bytes: null },
+        { id: 40, bytes: "cell-40" },
+      ],
+    });
+  });
+
+  it("does not persist a partial snapshot when a required configuration cell fails", async () => {
+    const snapshots: GovernanceSnapshot[] = [];
+    const rpc = {
+      call: async (_method: string, params: { param?: number }) => {
+        if (params.param === 8) throw new Error("proof unavailable");
+        return { config: { bytes: `cell-${params.param}` } };
+      },
+    } as unknown as TosRpc;
+    const db = { recordGovernanceSnapshot: async (snapshot: GovernanceSnapshot) => { snapshots.push(snapshot); } } as unknown as ProjectionDb;
+    const projector = new Projector(db, rpc, new Metrics(), {
+      sourceUrl: "http://source", batchSize: 1, pollMs: 1, contractSyncMs: 1,
+    });
+
+    await expect((projector as unknown as { syncGovernance(seqno: number): Promise<void> }).syncGovernance(80))
+      .rejects.toThrow("proof unavailable");
+    expect(snapshots).toHaveLength(0);
   });
 });

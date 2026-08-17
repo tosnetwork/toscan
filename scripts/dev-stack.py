@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -86,10 +87,22 @@ def endpoint_ready(url: str):
         return False
 
 
+def service_ready(name: str):
+    if name != "node":
+        return endpoint_ready(SERVICES[name])
+    if not endpoint_ready(SERVICES["node"]):
+        return False
+    try:
+        with socket.create_connection(("127.0.0.1", 8011), timeout=2):
+            return True
+    except OSError:
+        return False
+
+
 def wait_ready(name: str, timeout: float):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        if endpoint_ready(SERVICES[name]):
+        if service_ready(name):
             return
         time.sleep(0.5)
     log = STATE_DIR / "logs" / f"{name}.log"
@@ -117,6 +130,22 @@ def launch(name: str, command: list[str], cwd: Path, env=None):
         "log": str(log_path),
         "started_at": int(time.time()),
     }
+
+
+def terminate_process(name: str, record):
+    if not record or not process_alive(record):
+        return
+    pid = int(record["pid"])
+    print(f"Stopping {name} (pid {pid}) ...")
+    try:
+        os.killpg(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline and process_alive(record):
+        time.sleep(0.25)
+    if process_alive(record):
+        os.killpg(pid, signal.SIGKILL)
 
 
 def generate_explorer_config():
@@ -172,6 +201,10 @@ def start(args):
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     processes = clean_process_table()
 
+    if "node" in processes and not service_ready("node"):
+        terminate_process("explorer", processes.pop("explorer", None))
+        terminate_process("node", processes.pop("node"))
+        write_processes(processes)
     if "node" not in processes:
         processes["node"] = launch(
             "node",
@@ -187,6 +220,9 @@ def start(args):
     wait_ready("node", 150)
 
     config_path = generate_explorer_config()
+    if "explorer" in processes and not service_ready("explorer"):
+        terminate_process("explorer", processes.pop("explorer"))
+        write_processes(processes)
     if "explorer" not in processes:
         processes["explorer"] = launch(
             "explorer",
@@ -218,7 +254,7 @@ def start(args):
 
 
 def seed(_args=None):
-    if not endpoint_ready(SERVICES["node"]):
+    if not service_ready("node"):
         raise RuntimeError("local node is not running; run `pnpm stack:up` first")
     command = [
         "uv", "run", "python", "scripts/toscan-dev-seed.py",
@@ -240,19 +276,7 @@ def stop(_args=None):
     processes = read_processes()
     for name in ("explorer", "node"):
         record = processes.get(name)
-        if not record or not process_alive(record):
-            continue
-        pid = int(record["pid"])
-        print(f"Stopping {name} (pid {pid}) ...")
-        try:
-            os.killpg(pid, signal.SIGTERM)
-        except ProcessLookupError:
-            continue
-        deadline = time.monotonic() + 15
-        while time.monotonic() < deadline and process_alive(record):
-            time.sleep(0.25)
-        if process_alive(record):
-            os.killpg(pid, signal.SIGKILL)
+        terminate_process(name, record)
     write_processes({})
     print("TOSCAN stack stopped; chain and index data were preserved.")
 
@@ -277,7 +301,7 @@ def print_status(_args=None):
     for name, url in SERVICES.items():
         record = processes.get(name)
         pid = record.get("pid") if record else "-"
-        state = "ready" if endpoint_ready(url) else "stopped"
+        state = "ready" if service_ready(name) else "stopped"
         print(f"  {name:8} {state:7} pid={pid}  {url}")
 
 

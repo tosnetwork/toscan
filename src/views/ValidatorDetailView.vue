@@ -7,6 +7,7 @@ import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import TrendChart from "@/components/TrendChart.vue";
+import WatchButton from "@/components/WatchButton.vue";
 import { getValidatorDetail } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { compact, formatDate, formatInteger, formatTos, ratioPercent } from "@/utils/format";
@@ -16,12 +17,13 @@ const publicKey = computed(() => String(route.params.publicKey));
 const { data, loading, error, refresh } = useAsyncData(() => getValidatorDetail(publicKey.value), [publicKey], { refreshInterval: 15_000 });
 const chronological = computed(() => [...(data.value?.history ?? [])].reverse());
 const rewards = computed(() => [...(data.value?.network_reward_cycles ?? [])].reverse());
+const fingerprint = computed(() => data.value ? JSON.stringify([data.value.currently_selected, data.value.selected_for_next_set, data.value.current.weight, data.value.latest_observed_mc_seqno]) : null);
 </script>
 
 <template>
   <div class="container page-container">
     <PageHeading title="Validator" description="Proof-extracted membership, selection history and voting weight without invented operator or reward attribution." eyebrow="Consensus evidence">
-      <RouterLink class="button button--secondary" to="/validators">All validators</RouterLink>
+      <div class="heading-actions"><RouterLink class="button button--secondary" to="/validators">All validators</RouterLink><WatchButton kind="validator" :identity="publicKey" label="Validator" :route="`/validator/${publicKey}`" :fingerprint="fingerprint" /></div>
     </PageHeading>
     <LoadState :loading="loading" :error="error" @retry="refresh">
       <template v-if="data">

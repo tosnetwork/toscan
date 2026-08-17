@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">TOSCAN</title><desc id="desc">TOS Network evidence explorer</desc>
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b1118"/><stop offset="1" stop-color="#152635"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#g)"/><circle cx="915" cy="138" r="220" fill="#d7ff3f" opacity=".12"/><circle cx="1030" cy="460" r="290" fill="#75e8c4" opacity=".08"/>
+  <path d="M120 175h108l58 100-58 100H120L62 275z" fill="#d7ff3f"/><path d="M142 215h62l34 60-34 60h-62l-34-60z" fill="#0b1118"/>
+  <text x="335" y="292" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="118" font-weight="800" letter-spacing="8">TOSCAN</text>
+  <text x="340" y="365" fill="#b9c5ce" font-family="Arial,Helvetica,sans-serif" font-size="34">See what the TOS Network can prove.</text>
+</svg>

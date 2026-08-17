@@ -9,6 +9,7 @@ import PageHeading from "@/components/PageHeading.vue";
 import PaginationBar from "@/components/PaginationBar.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import TransactionRows from "@/components/TransactionRows.vue";
+import WatchButton from "@/components/WatchButton.vue";
 import { getAccount, getAccountTransactionsPage, getAddressLabel, getContractVerification } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { useCursorPagination } from "@/composables/useCursorPagination";
@@ -28,13 +29,14 @@ const { data: transactionPage, loading: transactionsLoading, error: transactions
   [address, transactionPagination.cursor],
 );
 watch(address, () => transactionPagination.reset());
+const fingerprint = computed(() => data.value ? JSON.stringify([data.value.info.balance, data.value.info.state, data.value.info.last_transaction_id]) : null);
 </script>
 
 <template>
   <div class="container page-container address-page">
     <nav class="breadcrumbs" aria-label="Breadcrumb"><RouterLink to="/">Explorer</RouterLink><AppIcon name="chevron" :size="13" /><span>Address</span></nav>
     <PageHeading title="Address" description="Balance, activity, assets and delegated authority." eyebrow="Account">
-      <span v-if="data" class="status-badge" :data-tone="data.info.state === 'active' ? 'positive' : 'neutral'">{{ data.info.state }}</span>
+      <div class="heading-actions"><span v-if="data" class="status-badge" :data-tone="data.info.state === 'active' ? 'positive' : 'neutral'">{{ data.info.state }}</span><WatchButton kind="address" :identity="address" label="TOS account" :route="`/address/${address}`" :fingerprint="fingerprint" /></div>
     </PageHeading>
     <LoadState :loading="loading" :error="error" @retry="refresh">
       <template v-if="data">

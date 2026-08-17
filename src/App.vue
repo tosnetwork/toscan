@@ -40,6 +40,8 @@ function backToTop(): void {
           <RouterLink to="/blocks">{{ t('Blocks') }}</RouterLink>
           <RouterLink to="/transactions">{{ t('Transactions') }}</RouterLink>
           <RouterLink to="/assets">{{ t('Assets') }}</RouterLink>
+          <RouterLink to="/assets/activity">{{ t('Asset activity') }}</RouterLink>
+          <RouterLink to="/contracts/verified">{{ t('Verified contracts') }}</RouterLink>
           <RouterLink to="/analytics">{{ t('Analytics') }}</RouterLink>
         </nav>
 
@@ -57,6 +59,8 @@ function backToTop(): void {
           <RouterLink to="/validators">{{ t('Validators') }}</RouterLink>
           <RouterLink to="/staking">{{ t('Staking') }}</RouterLink>
           <RouterLink to="/governance">{{ t('Governance') }}</RouterLink>
+          <RouterLink to="/watchlist">{{ t('Watchlist') }}</RouterLink>
+          <RouterLink to="/api-docs">{{ t('Explorer API') }}</RouterLink>
         </nav>
       </div>
 

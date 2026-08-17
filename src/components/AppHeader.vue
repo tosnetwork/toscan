@@ -32,6 +32,7 @@ const navigation: NavigationGroup[] = [
     items: [
       { to: "/blocks", label: "Blocks", description: "Finalized masterchain and shard blocks" },
       { to: "/transactions", label: "Transactions", description: "Account changes and message execution" },
+      { to: "/contracts/verified", label: "Verified contracts", description: "Reproducible source and deployed-code matches" },
       { to: "/network", label: "Network", description: "Chain tip, finality and index health" },
     ],
   },
@@ -39,6 +40,7 @@ const navigation: NavigationGroup[] = [
     label: "Assets",
     items: [
       { to: "/assets", label: "Assets", description: "Jettons, NFTs and verified positions" },
+      { to: "/assets/activity", label: "Asset activity", description: "Ownership-position observations" },
     ],
   },
   {
@@ -63,7 +65,10 @@ const navigation: NavigationGroup[] = [
     label: "Insights",
     items: [
       { to: "/analytics", label: "Analytics", description: "Chain-derived activity and fee trends" },
+      { to: "/watchlist", label: "Watchlist", description: "Private monitoring in this browser" },
       { to: "/network", label: "Network status", description: "Source availability and projection lag" },
+      { to: "/api-docs", label: "Explorer API", description: "Public read-only endpoint reference" },
+      { to: "/diagnostics", label: "Diagnostics", description: "Private browser health records" },
     ],
   },
 ];
@@ -118,7 +123,7 @@ watch(() => route.fullPath, () => {
           <div class="nav-dropdown-panel">
             <RouterLink v-for="item in group.items" :key="item.to + item.label" :to="item.to">
               <span>{{ t(item.label) }}</span>
-              <small>{{ item.description }}</small>
+              <small>{{ t(item.description) }}</small>
             </RouterLink>
           </div>
         </div>

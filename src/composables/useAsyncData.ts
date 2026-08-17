@@ -1,4 +1,5 @@
 import { onBeforeUnmount, onMounted, ref, watch, type Ref } from "vue";
+import { recordClientDiagnostic } from "@/observability/client";
 
 interface AsyncDataOptions {
   refreshInterval?: number;
@@ -23,7 +24,10 @@ export function useAsyncData<T>(
       const next = await loader();
       if (current === request) data.value = next;
     } catch (reason) {
-      if (current === request) error.value = reason instanceof Error ? reason.message : "Something went wrong";
+      if (current === request) {
+        error.value = reason instanceof Error ? reason.message : "Something went wrong";
+        recordClientDiagnostic({ type: "error", name: "Data load", detail: error.value });
+      }
     } finally {
       if (current === request) loading.value = false;
     }

@@ -1,0 +1,62 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "TOSCAN Explorer API",
+    "version": "1.0.0",
+    "description": "Read-only, rebuildable projection of finalized TOS Network evidence. Node state and proof-backed responses remain authoritative."
+  },
+  "servers": [{ "url": "/tos-service-api" }],
+  "tags": [
+    { "name": "Status" },
+    { "name": "Chain" },
+    { "name": "Assets" },
+    { "name": "Contracts" },
+    { "name": "Consensus" }
+  ],
+  "paths": {
+    "/explorer/status": { "get": { "tags": ["Status"], "summary": "Projection status and lag", "responses": { "200": { "$ref": "#/components/responses/Json" } } } },
+    "/explorer/blocks": { "get": { "tags": ["Chain"], "summary": "List canonical blocks", "parameters": [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }, { "$ref": "#/components/parameters/Cursor" }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } },
+    "/explorer/block": { "get": { "tags": ["Chain"], "summary": "Get a canonical block by hash", "parameters": [{ "$ref": "#/components/parameters/Hash" }], "responses": { "200": { "$ref": "#/components/responses/Json" }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/explorer/transactions": { "get": { "tags": ["Chain"], "summary": "List finalized transactions", "parameters": [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }, { "$ref": "#/components/parameters/Cursor" }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } },
+    "/explorer/transaction": { "get": { "tags": ["Chain"], "summary": "Get a finalized transaction by hash", "parameters": [{ "$ref": "#/components/parameters/Hash" }], "responses": { "200": { "$ref": "#/components/responses/Json" }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/explorer/message": { "get": { "tags": ["Chain"], "summary": "Get indexed message occurrences", "parameters": [{ "$ref": "#/components/parameters/Hash" }], "responses": { "200": { "$ref": "#/components/responses/Json" }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/explorer/economy": { "get": { "tags": ["Contracts"], "summary": "Get Agent Economy projection totals", "responses": { "200": { "$ref": "#/components/responses/Json" } } } },
+    "/explorer/search": { "get": { "tags": ["Chain"], "summary": "Resolve an exact canonical identity", "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "$ref": "#/components/responses/Json" } } } },
+    "/explorer/search/suggest": { "get": { "tags": ["Chain"], "summary": "Suggest typed labels and identities", "parameters": [{ "name": "q", "in": "query", "required": true, "schema": { "type": "string", "minLength": 2 } }, { "$ref": "#/components/parameters/Limit" }], "responses": { "200": { "$ref": "#/components/responses/Json" } } } },
+    "/explorer/assets": { "get": { "tags": ["Assets"], "summary": "List discovered Jetton and NFT contracts", "parameters": [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }, { "name": "kind", "in": "query", "schema": { "type": "string", "enum": ["jetton", "nft_item", "nft_collection"] } }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } },
+    "/explorer/assets/activity": { "get": { "tags": ["Assets"], "summary": "List ownership-position observations", "description": "Appearance and removal observations are not asserted to be decoded token transfers.", "parameters": [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }, { "name": "asset", "in": "query", "schema": { "type": "string" } }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } },
+    "/explorer/assets/{address}": { "get": { "tags": ["Assets"], "summary": "Get an indexed asset contract", "parameters": [{ "$ref": "#/components/parameters/Address" }], "responses": { "200": { "$ref": "#/components/responses/Json" }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/explorer/assets/{address}/holders": { "get": { "tags": ["Assets"], "summary": "List observed owner positions", "parameters": [{ "$ref": "#/components/parameters/Address" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } },
+    "/explorer/assets/{address}/items": { "get": { "tags": ["Assets"], "summary": "List items in an NFT collection", "parameters": [{ "$ref": "#/components/parameters/Address" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } },
+    "/explorer/contracts/{kind}": { "get": { "tags": ["Contracts"], "summary": "List typed Agent Economy contracts", "parameters": [{ "$ref": "#/components/parameters/Kind" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }, { "$ref": "#/components/parameters/Cursor" }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } },
+    "/explorer/contracts/{kind}/{address}": { "get": { "tags": ["Contracts"], "summary": "Get a typed Agent Economy contract", "parameters": [{ "$ref": "#/components/parameters/Kind" }, { "$ref": "#/components/parameters/Address" }], "responses": { "200": { "$ref": "#/components/responses/Json" }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/explorer/labels/{address}": { "get": { "tags": ["Contracts"], "summary": "List reviewed public address labels", "parameters": [{ "$ref": "#/components/parameters/Address" }], "responses": { "200": { "$ref": "#/components/responses/Json" } } } },
+    "/explorer/verifications": { "get": { "tags": ["Contracts"], "summary": "List byte-identical build attestations", "parameters": [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } },
+    "/explorer/verifications/{address}": { "get": { "tags": ["Contracts"], "summary": "Get a contract build attestation", "parameters": [{ "$ref": "#/components/parameters/Address" }], "responses": { "200": { "$ref": "#/components/responses/Json" }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/explorer/validators": { "get": { "tags": ["Consensus"], "summary": "List proof-decoded validator membership", "parameters": [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } },
+    "/explorer/validators/{publicKey}": { "get": { "tags": ["Consensus"], "summary": "Get validator membership history", "parameters": [{ "$ref": "#/components/parameters/PublicKey" }], "responses": { "200": { "$ref": "#/components/responses/Json" }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/explorer/staking": { "get": { "tags": ["Consensus"], "summary": "Get Elector reward context and canonical pools", "responses": { "200": { "$ref": "#/components/responses/Json" } } } },
+    "/explorer/staking/pools/{address}": { "get": { "tags": ["Consensus"], "summary": "Get canonical Nominator Pool detail", "parameters": [{ "$ref": "#/components/parameters/Address" }], "responses": { "200": { "$ref": "#/components/responses/Json" }, "404": { "$ref": "#/components/responses/NotFound" } } } },
+    "/explorer/analytics": { "get": { "tags": ["Chain"], "summary": "Get chain-derived activity buckets", "parameters": [{ "name": "window", "in": "query", "schema": { "type": "string", "enum": ["24h", "7d", "30d", "90d"] } }], "responses": { "200": { "$ref": "#/components/responses/Json" } } } },
+    "/explorer/governance/history": { "get": { "tags": ["Consensus"], "summary": "List retained configuration snapshots", "parameters": [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Offset" }], "responses": { "200": { "$ref": "#/components/responses/Page" } } } }
+  },
+  "components": {
+    "parameters": {
+      "Limit": { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 50 } },
+      "Offset": { "name": "offset", "in": "query", "schema": { "type": "integer", "minimum": 0, "default": 0 } },
+      "Cursor": { "name": "cursor", "in": "query", "schema": { "type": "string" } },
+      "Address": { "name": "address", "in": "path", "required": true, "schema": { "type": "string" } },
+      "Hash": { "name": "hash", "in": "query", "required": true, "schema": { "type": "string" } },
+      "Kind": { "name": "kind", "in": "path", "required": true, "schema": { "type": "string", "enum": ["agent_account", "task_escrow", "service_actor", "dispute", "nominator_pool"] } },
+      "PublicKey": { "name": "publicKey", "in": "path", "required": true, "schema": { "type": "string" } }
+    },
+    "responses": {
+      "Json": { "description": "Successful evidence response", "content": { "application/json": { "schema": { "type": "object", "additionalProperties": true } } } },
+      "Page": { "description": "Paginated evidence response", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Page" } } } },
+      "NotFound": { "description": "Evidence not found" }
+    },
+    "schemas": {
+      "Page": { "type": "object", "required": ["ok", "result", "total", "offset", "limit", "complete"], "properties": { "ok": { "type": "boolean", "const": true }, "result": { "type": "array", "items": {} }, "total": { "type": "integer" }, "offset": { "type": "integer" }, "limit": { "type": "integer" }, "complete": { "type": "boolean" }, "next_cursor": { "type": ["string", "null"] } } }
+    }
+  }
+}

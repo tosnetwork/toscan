@@ -5,7 +5,9 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 ARG VITE_TOS_NETWORK=mainnet
+ARG VITE_PUBLIC_ORIGIN=http://localhost:8080
 ENV VITE_TOS_NETWORK=${VITE_TOS_NETWORK} \
+    VITE_PUBLIC_ORIGIN=${VITE_PUBLIC_ORIGIN} \
     VITE_TOS_RPC_URL=/tos-rpc \
     VITE_TOS_RPC_TRANSPORT=rest \
     VITE_TOS_SERVICE_API_URL=/tos-service-api \
@@ -21,7 +23,6 @@ RUN sed -i '/^nginx/s/=.*//' /etc/apk/world \
   && mkdir -p /run/nginx
 ENV TOS_RPC_UPSTREAM=http://host.docker.internal:8011 \
     TOS_SERVICE_UPSTREAM=http://host.docker.internal:8080 \
-    TOS_RPC_API_KEY="" \
     NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/http.d
 COPY deploy/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html

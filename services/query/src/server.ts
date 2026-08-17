@@ -145,6 +145,19 @@ function asset(row: QueryResultRow): Record<string, unknown> {
   };
 }
 
+function assetPositionEvent(row: QueryResultRow): Record<string, unknown> {
+  return {
+    id: Number(row.id),
+    owner_address: row.owner_address,
+    asset_address: row.asset_address,
+    position_address: row.position_address,
+    kind: row.kind,
+    event_type: row.event_type,
+    last_lt: String(row.last_lt),
+    observed_at: Number(row.observed_at),
+  };
+}
+
 const BLOCK_SELECT = `SELECT b.*,
   (SELECT count(*) FROM explorer_transactions t
    WHERE t.workchain=b.workchain AND t.shard=b.shard AND t.seqno=b.seqno) AS tx_count
@@ -552,6 +565,32 @@ export function buildServer(
     } };
   });
 
+  app.get("/explorer/governance/history", async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const { offset, limit } = page(query);
+    const [rows, total] = await Promise.all([
+      db.pool.query(
+        `SELECT observed_mc_seqno,observed_at,data
+         FROM explorer_governance_snapshots
+         ORDER BY observed_mc_seqno DESC OFFSET $1 LIMIT $2`,
+        [offset, limit],
+      ),
+      db.pool.query("SELECT count(*)::int total FROM explorer_governance_snapshots"),
+    ]);
+    return {
+      ok: true,
+      total: total.rows[0].total,
+      offset,
+      limit,
+      complete: true,
+      result: rows.rows.map((row) => ({
+        ...row.data,
+        observed_mc_seqno: Number(row.observed_mc_seqno),
+        observed_at: Number(row.observed_at),
+      })),
+    };
+  });
+
   app.get<{ Params: { address: string } }>("/explorer/labels/:address", async (request, reply) => {
     const address = request.params.address.toLowerCase();
     if (!ADDRESS.test(address)) throw Object.assign(new Error("invalid TOS address"), { statusCode: 400 });
@@ -624,6 +663,76 @@ export function buildServer(
     };
   });
 
+  app.get("/explorer/assets/activity", async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const { offset, limit } = page(query);
+    const filters: string[] = [];
+    const values: unknown[] = [];
+    if (query.asset !== undefined) {
+      const address = String(query.asset).toLowerCase();
+      if (!ADDRESS.test(address)) throw Object.assign(new Error("invalid TOS address"), { statusCode: 400 });
+      values.push(address);
+      filters.push(`asset_address=$${values.length}`);
+    }
+    if (query.kind !== undefined) {
+      const kind = String(query.kind);
+      if (!["jetton", "nft_item"].includes(kind)) {
+        throw Object.assign(new Error("unsupported asset activity kind"), { statusCode: 400 });
+      }
+      values.push(kind);
+      filters.push(`kind=$${values.length}`);
+    }
+    const where = filters.length ? ` WHERE ${filters.join(" AND ")}` : "";
+    const countValues = [...values];
+    values.push(offset, limit);
+    const [rows, total] = await Promise.all([
+      db.pool.query(
+        `SELECT * FROM explorer_asset_position_events${where}
+         ORDER BY observed_at DESC,id DESC OFFSET $${values.length - 1} LIMIT $${values.length}`,
+        values,
+      ),
+      db.pool.query(`SELECT count(*)::int total FROM explorer_asset_position_events${where}`, countValues),
+    ]);
+    return { ok: true, total: total.rows[0].total, offset, limit, complete: true, result: rows.rows.map(assetPositionEvent) };
+  });
+
+  app.get<{ Params: { address: string } }>("/explorer/assets/:address/holders", async (request) => {
+    const address = request.params.address.toLowerCase();
+    if (!ADDRESS.test(address)) throw Object.assign(new Error("invalid TOS address"), { statusCode: 400 });
+    const { offset, limit } = page(request.query as Record<string, unknown>);
+    const [rows, total] = await Promise.all([
+      db.pool.query(
+        `SELECT owner_address,position_address,kind,last_lt::text
+         FROM explorer_asset_positions WHERE asset_address=$1
+         ORDER BY last_lt DESC,owner_address OFFSET $2 LIMIT $3`,
+        [address, offset, limit],
+      ),
+      db.pool.query("SELECT count(*)::int total FROM explorer_asset_positions WHERE asset_address=$1", [address]),
+    ]);
+    return { ok: true, total: total.rows[0].total, offset, limit, complete: true, result: rows.rows };
+  });
+
+  app.get<{ Params: { address: string } }>("/explorer/assets/:address/items", async (request) => {
+    const address = request.params.address.toLowerCase();
+    if (!ADDRESS.test(address)) throw Object.assign(new Error("invalid TOS address"), { statusCode: 400 });
+    const { offset, limit } = page(request.query as Record<string, unknown>);
+    const [rows, total] = await Promise.all([
+      db.pool.query(
+        `SELECT a.*,(SELECT count(*) FROM explorer_asset_positions p WHERE p.asset_address=a.address) holder_count
+         FROM explorer_assets a
+         WHERE a.kind='nft_item' AND lower(COALESCE(a.data->>'collection_address',''))=$1
+         ORDER BY a.updated_at DESC,a.address OFFSET $2 LIMIT $3`,
+        [address, offset, limit],
+      ),
+      db.pool.query(
+        `SELECT count(*)::int total FROM explorer_assets
+         WHERE kind='nft_item' AND lower(COALESCE(data->>'collection_address',''))=$1`,
+        [address],
+      ),
+    ]);
+    return { ok: true, total: total.rows[0].total, offset, limit, complete: true, result: rows.rows.map(asset) };
+  });
+
   app.get<{ Params: { address: string } }>("/explorer/assets/:address", async (request, reply) => {
     const address = request.params.address.toLowerCase();
     const result = await db.pool.query(
@@ -650,6 +759,28 @@ export function buildServer(
     );
     if (!result.rows[0]) return reply.code(404).send({ ok: false, error: { message: "contract has no matched build attestation" } });
     return { ok: true, result: { ...result.rows[0], verified_at: Number(result.rows[0].verified_at) } };
+  });
+
+  app.get("/explorer/verifications", async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const { offset, limit } = page(query);
+    const [rows, total] = await Promise.all([
+      db.pool.query(
+        `SELECT address,compiler,compiler_version,repository_url,source_commit,source_digest,
+                build_command,verified_at::text,observed_mc_seqno,manifest
+         FROM explorer_contract_verifications ORDER BY verified_at DESC,address OFFSET $1 LIMIT $2`,
+        [offset, limit],
+      ),
+      db.pool.query("SELECT count(*)::int total FROM explorer_contract_verifications"),
+    ]);
+    return {
+      ok: true,
+      total: total.rows[0].total,
+      offset,
+      limit,
+      complete: true,
+      result: rows.rows.map((row) => ({ ...row, verified_at: Number(row.verified_at) })),
+    };
   });
 
   app.get("/explorer/block", async (request, reply) => {
@@ -715,9 +846,66 @@ export function buildServer(
     return { ok: true, result: contract(result.rows[0]) };
   });
 
+  app.get("/explorer/search/suggest", async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const q = String(query.q ?? "").trim();
+    if (q.length < 2) return { ok: true, result: [] };
+    if (q.length > 256) throw Object.assign(new Error("search query is too long"), { statusCode: 400 });
+    const limit = Math.min(12, Math.max(1, Number(query.limit ?? 8) || 8));
+    const prefix = `${q.toLowerCase().replace(/[\\%_]/g, "\\$&")}%`;
+    const [labels, contracts, assets, transactions, messages, blocks, verifications] = await Promise.all([
+      db.pool.query(
+        `SELECT address,label,category FROM explorer_address_labels
+         WHERE lower(label) LIKE $1 OR address LIKE $1
+         ORDER BY CASE WHEN lower(label) LIKE $1 THEN 0 ELSE 1 END,label LIMIT 4`,
+        [prefix],
+      ),
+      db.pool.query(
+        `SELECT address,kind,status,data FROM explorer_contracts
+         WHERE address LIKE $1
+            OR lower(COALESCE(data->>'name',data->>'title','')) LIKE $1
+         ORDER BY updated_at DESC LIMIT 4`,
+        [prefix],
+      ),
+      db.pool.query(
+        `SELECT address,kind,data FROM explorer_assets
+         WHERE address LIKE $1
+            OR lower(COALESCE(data->>'jetton_name',data->>'jetton_symbol','')) LIKE $1
+         ORDER BY updated_at DESC LIMIT 4`,
+        [prefix],
+      ),
+      db.pool.query("SELECT hash,account,lt::text FROM explorer_transactions WHERE lower(hash) LIKE $1 ORDER BY indexed_at DESC LIMIT 3", [prefix]),
+      db.pool.query("SELECT DISTINCT ON (hash) hash,kind,source,destination FROM explorer_messages WHERE lower(hash) LIKE $1 ORDER BY hash,created_lt DESC LIMIT 3", [prefix]),
+      /^\d+$/.test(q)
+        ? db.pool.query("SELECT workchain,shard::text,seqno,root_hash FROM explorer_blocks WHERE seqno=$1 ORDER BY workchain,shard LIMIT 3", [Number(q)])
+        : db.pool.query("SELECT workchain,shard::text,seqno,root_hash FROM explorer_blocks WHERE lower(root_hash) LIKE $1 OR lower(file_hash) LIKE $1 ORDER BY observed_mc_seqno DESC LIMIT 3", [prefix]),
+      db.pool.query("SELECT address,compiler,repository_url FROM explorer_contract_verifications WHERE address LIKE $1 ORDER BY verified_at DESC LIMIT 3", [prefix]),
+    ]);
+    const routeForContract = (kind: string, address: string) => {
+      const name = ({ agent_account: "agent", task_escrow: "task", service_actor: "service", dispute: "dispute" } as Record<string, string>)[kind] ?? "address";
+      return `/${name}/${address}`;
+    };
+    const suggestions = [
+      ...labels.rows.map((row) => ({ kind: "label", title: row.label, subtitle: row.category, value: row.address, route: `/address/${row.address}` })),
+      ...contracts.rows.map((row) => ({ kind: "contract", title: row.data?.name ?? row.kind, subtitle: row.status ?? row.kind, value: row.address, route: routeForContract(row.kind, row.address) })),
+      ...assets.rows.map((row) => ({ kind: "asset", title: row.data?.jetton_name ?? row.data?.jetton_symbol ?? row.kind, subtitle: row.kind, value: row.address, route: `/token/${row.address}` })),
+      ...transactions.rows.map((row) => ({ kind: "transaction", title: row.hash, subtitle: `LT ${row.lt}`, value: row.hash, route: `/tx/${row.account}/${row.lt}/${row.hash}` })),
+      ...messages.rows.map((row) => ({ kind: "message", title: row.hash, subtitle: row.kind, value: row.hash, route: `/message/${row.hash}` })),
+      ...blocks.rows.map((row) => ({ kind: "block", title: `Block ${row.seqno}`, subtitle: row.root_hash, value: String(row.seqno), route: `/block/${row.workchain}/${row.shard}/${row.seqno}` })),
+      ...verifications.rows.map((row) => ({ kind: "verification", title: "Verified contract", subtitle: row.compiler, value: row.address, route: `/contracts/verified/${row.address}` })),
+    ];
+    const seen = new Set<string>();
+    return { ok: true, result: suggestions.filter((item) => {
+      if (seen.has(item.route)) return false;
+      seen.add(item.route);
+      return true;
+    }).slice(0, limit) };
+  });
+
   app.get("/explorer/search", async (request) => {
     const q = String((request.query as Record<string, unknown>).q ?? "").trim();
     if (!q) throw Object.assign(new Error("search query is required"), { statusCode: 400 });
+    if (q.length > 256) throw Object.assign(new Error("search query is too long"), { statusCode: 400 });
     const tx = await db.pool.query(`${TX_SELECT} WHERE t.hash=$1`, [q]);
     if (tx.rows[0]) return { ok: true, result: { kind: "transaction", result: transaction(tx.rows[0]) } };
     const foundMessage = await db.pool.query(

@@ -44,6 +44,9 @@ describe("query readiness", () => {
     expect((await app.inject("/explorer/transactions?workchain=zero&shard=1&seqno=2")).statusCode).toBe(400);
     expect((await app.inject("/explorer/transactions?workchain=0&shard=not-a-shard&seqno=2")).statusCode).toBe(400);
     expect((await app.inject("/explorer/contracts/task_escrow?deadline_after=tomorrow")).statusCode).toBe(400);
+    expect((await app.inject(`/explorer/search/suggest?q=${"a".repeat(257)}`)).statusCode).toBe(400);
+    expect((await app.inject("/explorer/assets/activity?kind=coin")).statusCode).toBe(400);
+    expect((await app.inject("/explorer/assets/not-an-address/holders")).statusCode).toBe(400);
     await app.close();
   });
 

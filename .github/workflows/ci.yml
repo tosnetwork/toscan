@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: toscan-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   # The TOS revision this repository's release gate is verified against.
   # Bumping it is a decision about what the gate means, so it is made here,
@@ -29,6 +33,17 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Validate production configuration contract
+        env:
+          NODE_ENV: production
+          VITE_TOS_NETWORK: mainnet
+          VITE_PUBLIC_ORIGIN: https://explorer.example
+          VITE_ENABLE_PREVIEW: "false"
+          TOS_RPC_UPSTREAM: http://tos-rpc:8011
+          TOS_SERVICE_UPSTREAM: http://query:8081
+          TOS_SOURCE_EXPLORER: http://tos-service:8080
+          DATABASE_URL: postgresql://toscan:ci-only@postgres:5432/toscan
+        run: pnpm production:validate
       - run: pnpm check
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e

@@ -186,6 +186,15 @@ export interface ValidatorSetSnapshot {
   signatures: Array<{ node_id_short: string; signature: string }>;
 }
 
+export interface GovernanceSnapshot {
+  observed_mc_seqno: number;
+  observed_at: number;
+  parameters: Array<{
+    id: number;
+    bytes: string | null;
+  }>;
+}
+
 export interface JettonPosition {
   jetton_master: string;
   jetton_wallet: string;

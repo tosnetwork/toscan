@@ -47,7 +47,7 @@ suite("PostgreSQL projection", () => {
     db = new ProjectionDb(databaseUrl!);
     await db.migrate();
     await db.migrate();
-    expect(await db.schemaVersion()).toBe(6);
+    expect(await db.schemaVersion()).toBe(7);
     await db.resetChain();
     await db.pool.query("TRUNCATE explorer_address_labels");
   });
@@ -285,12 +285,18 @@ suite("PostgreSQL projection", () => {
     expect(listing.json().result[0]).toMatchObject({ address: master, holder_count: 1 });
     const detail = await app.inject(`/explorer/assets/${encodeURIComponent(master)}`);
     expect(detail.json().result.holders[0]).toMatchObject({ owner_address: owner, last_lt: "700" });
+    const holders = await app.inject(`/explorer/assets/${encodeURIComponent(master)}/holders`);
+    expect(holders.json()).toMatchObject({ total: 1, result: [{ owner_address: owner, last_lt: "700" }] });
+    const observed = await app.inject(`/explorer/assets/activity?asset=${encodeURIComponent(master)}`);
+    expect(observed.json()).toMatchObject({ total: 1, result: [{ event_type: "observed", asset_address: master, owner_address: owner }] });
     const search = await app.inject(`/explorer/search?q=${encodeURIComponent(master)}`);
     expect(search.json().result).toMatchObject({ kind: "asset", result: { address: master } });
 
     await db.replaceAssetSnapshot(owner, [], [], []);
     const refreshed = await app.inject(`/explorer/assets/${encodeURIComponent(master)}`);
     expect(refreshed.json().result.holder_count).toBe(0);
+    const removed = await app.inject(`/explorer/assets/activity?asset=${encodeURIComponent(master)}`);
+    expect(removed.json().result.map((event: { event_type: string }) => event.event_type).sort()).toEqual(["observed", "removed"]);
     await app.close();
   });
 
@@ -308,7 +314,37 @@ suite("PostgreSQL projection", () => {
     const response = await app.inject(`/explorer/verifications/${encodeURIComponent(address)}`);
     expect(response.statusCode).toBe(200);
     expect(response.json().result).toMatchObject({ address, compiler: "func", observed_mc_seqno: 500 });
+    const listing = await app.inject("/explorer/verifications");
+    expect(listing.json()).toMatchObject({ total: 1, result: [{ address, compiler: "func" }] });
+    const suggestion = await app.inject(`/explorer/search/suggest?q=${encodeURIComponent(address.slice(0, 20))}`);
+    expect(suggestion.json().result).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: "verification", route: `/contracts/verified/${address}` }),
+    ]));
     expect((await app.inject(`/explorer/verifications/${encodeURIComponent(`0:${"ee".repeat(32)}`)}`)).statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("retains proof-backed governance configuration history without vote attribution", async () => {
+    await db.recordGovernanceSnapshot({
+      observed_mc_seqno: 700,
+      observed_at: 1_700_003_000,
+      parameters: [{ id: 0, bytes: "authority-a" }, { id: 34, bytes: "validators-a" }],
+    });
+    await db.recordGovernanceSnapshot({
+      observed_mc_seqno: 701,
+      observed_at: 1_700_003_100,
+      parameters: [{ id: 0, bytes: "authority-a" }, { id: 34, bytes: "validators-b" }],
+    });
+    const app = buildServer(db, new Metrics());
+    const response = await app.inject("/explorer/governance/history?limit=10");
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      total: 2,
+      result: [
+        { observed_mc_seqno: 701, parameters: [{ id: 0, bytes: "authority-a" }, { id: 34, bytes: "validators-b" }] },
+        { observed_mc_seqno: 700 },
+      ],
+    });
     await app.close();
   });
 

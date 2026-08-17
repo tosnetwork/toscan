@@ -8,6 +8,7 @@ import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import TrendChart from "@/components/TrendChart.vue";
+import WatchButton from "@/components/WatchButton.vue";
 import { getAddressLabel, getNominatorPoolDetail } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { compact, formatDate, formatInteger, formatTos } from "@/utils/format";
@@ -19,12 +20,13 @@ const { data: publicLabel } = useAsyncData(() => getAddressLabel(address.value),
 const chronological = computed(() => [...(data.value?.history ?? [])].reverse());
 const rewardCycles = computed(() => [...(data.value?.network_reward_cycles ?? [])].reverse());
 const tosNumber = (value: string | number) => Number(value) / 1_000_000_000;
+const fingerprint = computed(() => data.value ? JSON.stringify([data.value.pool.updated_at, data.value.pool.status, data.value.pool.data.total_balance_at_risk, data.value.pool.data.nominators_count]) : null);
 </script>
 
 <template>
   <div class="container page-container">
     <PageHeading title="Nominator Pool" description="Current membership, stake exposure and retained on-chain observations." eyebrow="Staking evidence">
-      <StatusBadge v-if="data" :status="data.pool.status ?? 'unknown'" />
+      <div class="heading-actions"><StatusBadge v-if="data" :status="data.pool.status ?? 'unknown'" /><WatchButton kind="pool" :identity="address" label="Nominator Pool" :route="`/staking/pool/${address}`" :fingerprint="fingerprint" /></div>
     </PageHeading>
     <LoadState :loading="loading" :error="error" @retry="refresh">
       <template v-if="data">

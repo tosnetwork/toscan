@@ -34,6 +34,8 @@
     "stack:seed": "python3 scripts/dev-stack.py seed",
     "stack:reset": "python3 scripts/dev-stack.py reset --yes",
     "stack:logs": "python3 scripts/dev-stack.py logs",
+    "production:validate": "node scripts/validate-production-env.mjs",
+    "production:smoke": "node scripts/smoke-production.mjs",
     "check": "pnpm lint && pnpm typecheck && pnpm query:typecheck && pnpm test && pnpm build && pnpm query:build"
   },
   "dependencies": {

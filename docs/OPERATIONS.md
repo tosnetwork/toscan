@@ -22,6 +22,9 @@ Required production values:
 - `TOS_SOURCE_EXPLORER`: private explorer-only `tosctld` origin;
 - `TOS_SERVICE_UPSTREAM`: query-service origin used by the public gateway;
 - `TOS_RPC_API_KEY`: node read key, held only by backend services and the gateway.
+- `VITE_PUBLIC_ORIGIN`: canonical HTTPS public origin used at build time for metadata and sitemap output;
+- `VITE_TOS_NETWORK`: explicit `mainnet` or `testnet` public network label;
+- `VITE_ENABLE_PREVIEW=false`: required fail-closed production setting.
 
 Capacity controls:
 
@@ -99,10 +102,15 @@ Before promotion:
 ```bash
 pnpm check
 pnpm test:e2e
+NODE_ENV=production VITE_ENABLE_PREVIEW=false VITE_TOS_NETWORK=mainnet \
+  VITE_PUBLIC_ORIGIN=https://explorer.example TOS_RPC_UPSTREAM=http://tos-rpc:8011 \
+  TOS_SERVICE_UPSTREAM=http://query:8081 TOS_SOURCE_EXPLORER=http://tos-service:8080 \
+  DATABASE_URL=postgresql://toscan:…@postgres:5432/toscan pnpm production:validate
 QUERY_INTEGRATION_DATABASE_URL=postgresql://toscan:toscan-local-only@127.0.0.1:55432/toscan_test pnpm test:query:integration
-QUERY_INTEGRATION_DATABASE_URL=postgresql://toscan:toscan-local-only@127.0.0.1:55432/toscan_test pnpm test:query:recovery
-QUERY_INTEGRATION_DATABASE_URL=postgresql://toscan:toscan-local-only@127.0.0.1:55432/toscan_test pnpm test:query:scale
+QUERY_RECOVERY_DATABASE_URL=postgresql://toscan:toscan-local-only@127.0.0.1:55432/toscan_test pnpm test:query:recovery
+QUERY_SCALE_DATABASE_URL=postgresql://toscan:toscan-local-only@127.0.0.1:55432/toscan_test QUERY_SCALE_ROWS=1000000 pnpm test:query:scale
 docker compose build
+TOSCAN_SMOKE_ORIGIN=https://explorer.example pnpm production:smoke
 ```
 
 The scale gate inserts one million transactions, verifies thousands of unique keyset-paginated records while concurrent newer rows arrive, requires the intended index plan, and enforces a one-second local p95 budget. The recovery gate repeatedly closes and reopens the projection database, verifies canonical reset/replay and tests advisory-lease takeover. Treat both as release gates, not optional benchmarks.

@@ -115,6 +115,42 @@ test("global search and keyboard shortcut resolve canonical identities", async (
   await expect(page.getByRole("heading", { name: "Address" })).toBeVisible();
 });
 
+test("advanced search, verified evidence, governance history and local watchlist are usable", async ({ page }) => {
+  await page.goto("/blocks");
+  if ((page.viewportSize()?.width ?? 1_000) < 700) {
+    await page.getByRole("button", { name: "Toggle navigation" }).click();
+  }
+  await page.keyboard.press("/");
+  const search = page.locator('input[aria-label="Search TOS Network"]:focus');
+  await search.fill(agent.slice(0, 24));
+  const suggestion = page.getByRole("option", { name: /Agent/i });
+  await expect(suggestion).toBeVisible();
+  await suggestion.click();
+  await expect(page).toHaveURL(new RegExp(`/agent/${agent}$`));
+
+  await page.getByRole("button", { name: "Watch", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Watching", exact: true })).toBeVisible();
+  await page.goto("/watchlist");
+  await expect(page.getByRole("heading", { name: "Watchlist" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Agent Account" })).toBeVisible();
+  await page.getByRole("button", { name: /Check for changes/ }).click();
+  await expect(page.getByText("Quiet", { exact: true })).toBeVisible();
+
+  await page.goto("/contracts/verified");
+  await expect(page.getByRole("heading", { name: "Verified contracts" })).toBeVisible();
+  await expect(page.getByText("No verified contracts yet")).toBeVisible();
+  await page.goto("/assets/activity");
+  await expect(page.getByRole("heading", { name: "Asset activity" })).toBeVisible();
+  await expect(page.getByText("Transfer evidence boundary")).toBeVisible();
+  await page.goto("/governance");
+  await expect(page.getByText("Retained configuration history")).toBeVisible();
+  await expect(page.getByText("Governance attribution boundary")).toBeVisible();
+  await page.goto("/api-docs");
+  await expect(page.getByRole("heading", { name: "Explorer API" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Download OpenAPI/ })).toHaveAttribute("href", "/openapi.json");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", /\/api-docs$/);
+});
+
 test("grouped navigation and the expanded footer keep every product area discoverable", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("/blocks");
@@ -146,8 +182,9 @@ test("grouped navigation and the expanded footer keep every product area discove
 });
 
 test("primary public routes have no serious or critical accessibility violations", async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
   test.skip(testInfo.project.name !== "chromium", "One desktop accessibility pass covers the shared DOM.");
-  const routes = ["/", "/blocks", "/transactions", "/assets", "/agents", "/tasks", "/disputes", "/services", "/economy", "/network", "/analytics", "/validators", "/validator/preview-validator-1", "/staking", `/staking/pool/${previewPool}`, "/governance"];
+  const routes = ["/", "/blocks", "/transactions", "/assets", "/assets/activity", "/contracts/verified", "/agents", "/tasks", "/disputes", "/services", "/economy", "/network", "/analytics", "/validators", "/validator/preview-validator-1", "/staking", `/staking/pool/${previewPool}`, "/governance", "/watchlist", "/api-docs", "/diagnostics"];
   for (const route of routes) {
     await page.goto(route);
     await expect(page.locator("main")).toBeVisible();

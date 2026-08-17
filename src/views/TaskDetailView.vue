@@ -6,6 +6,7 @@ import CopyButton from "@/components/CopyButton.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
+import WatchButton from "@/components/WatchButton.vue";
 import { getIndexedContract } from "@/api/explorer";
 import type { Task } from "@/api/types";
 import { useAsyncData } from "@/composables/useAsyncData";
@@ -20,12 +21,13 @@ const { data, loading, error, refresh } = useAsyncData(
   { refreshInterval: 12_000 },
 );
 const reached = (step: string) => data.value ? lifecycle.indexOf(step) <= lifecycle.indexOf(data.value.data.status) : false;
+const fingerprint = computed(() => data.value ? JSON.stringify([data.value.updated_at, data.value.status, data.value.data]) : null);
 </script>
 
 <template>
   <div class="container page-container">
     <nav class="breadcrumbs" aria-label="Breadcrumb"><RouterLink to="/tasks">Tasks</RouterLink><AppIcon name="chevron" :size="13" /><span>{{ compact(address) }}</span></nav>
-    <PageHeading :title="data?.data.name || 'Task Escrow'" description="Escrow-backed work from creation through evidence, review and settlement." eyebrow="Autonomous work"><StatusBadge :status="data?.data.status ?? 'indexed'" /></PageHeading>
+    <PageHeading :title="data?.data.name || 'Task Escrow'" description="Escrow-backed work from creation through evidence, review and settlement." eyebrow="Autonomous work"><div class="heading-actions"><StatusBadge :status="data?.data.status ?? 'indexed'" /><WatchButton kind="task" :identity="address" :label="data?.data.name || 'Task Escrow'" :route="`/task/${address}`" :fingerprint="fingerprint" /></div></PageHeading>
     <LoadState :loading="loading" :error="error" @retry="refresh">
       <template v-if="data">
         <section class="surface transaction-hero-card"><span class="entity-glyph"><AppIcon name="task" :size="24" /></span><div><small>Task Escrow address</small><p class="mono">{{ data.address }}</p></div><CopyButton :value="data.address" label="task address" /></section>

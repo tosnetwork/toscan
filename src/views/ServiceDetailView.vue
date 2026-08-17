@@ -6,6 +6,7 @@ import CopyButton from "@/components/CopyButton.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
+import WatchButton from "@/components/WatchButton.vue";
 import { getIndexedContract } from "@/api/explorer";
 import type { Service } from "@/api/types";
 import { useAsyncData } from "@/composables/useAsyncData";
@@ -18,12 +19,13 @@ const { data, loading, error, refresh } = useAsyncData(
   [address],
   { refreshInterval: 12_000 },
 );
+const fingerprint = computed(() => data.value ? JSON.stringify([data.value.updated_at, data.value.status, data.value.data]) : null);
 </script>
 
 <template>
   <div class="container page-container">
     <nav class="breadcrumbs" aria-label="Breadcrumb"><RouterLink to="/services">Services</RouterLink><AppIcon name="chevron" :size="13" /><span>{{ compact(address) }}</span></nav>
-    <PageHeading title="Service Actor" description="On-chain price, access policy, capacity and accountable request state." eyebrow="AI service"><StatusBadge :status="data?.data.status ?? 'indexed'" /></PageHeading>
+    <PageHeading title="Service Actor" description="On-chain price, access policy, capacity and accountable request state." eyebrow="AI service"><div class="heading-actions"><StatusBadge :status="data?.data.status ?? 'indexed'" /><WatchButton kind="service" :identity="address" label="Service Actor" :route="`/service/${address}`" :fingerprint="fingerprint" /></div></PageHeading>
     <LoadState :loading="loading" :error="error" @retry="refresh"><template v-if="data">
       <section class="surface transaction-hero-card"><span class="entity-glyph"><AppIcon name="service" :size="24" /></span><div><small>Service Actor address</small><p class="mono">{{ data.address }}</p></div><CopyButton :value="data.address" label="service address" /></section>
       <section class="account-metrics">

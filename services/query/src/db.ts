@@ -1,8 +1,8 @@
 import pg from "pg";
-import type { ExplorerAsset, ExplorerContract, ExplorerStakingResponse, JettonPosition, MasterchainBundle, NftPosition, ValidatorSetSnapshot } from "./types.js";
+import type { ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, JettonPosition, MasterchainBundle, NftPosition, ValidatorSetSnapshot } from "./types.js";
 
 const { Pool } = pg;
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS projection_schema_migrations (
@@ -194,6 +194,37 @@ export class ProjectionDb {
         await client.query("CREATE INDEX IF NOT EXISTS explorer_address_labels_search ON explorer_address_labels(lower(label),category,address)");
         await client.query("INSERT INTO projection_schema_migrations(version) VALUES (6)");
       }
+      if (version < 7) {
+        await client.query(`CREATE TABLE IF NOT EXISTS explorer_asset_position_events (
+          id bigserial PRIMARY KEY,
+          owner_address text NOT NULL,
+          asset_address text NOT NULL,
+          position_address text,
+          kind text NOT NULL CHECK (kind IN ('jetton','nft_item')),
+          event_type text NOT NULL CHECK (event_type IN ('observed','removed')),
+          last_lt numeric(20,0) NOT NULL,
+          observed_at bigint NOT NULL,
+          UNIQUE(owner_address,asset_address,kind,last_lt,event_type)
+        )`);
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_asset_position_events_recent ON explorer_asset_position_events(observed_at DESC,id DESC)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_asset_position_events_asset ON explorer_asset_position_events(asset_address,observed_at DESC,id DESC)");
+        await client.query(`CREATE TABLE IF NOT EXISTS explorer_governance_snapshots (
+          observed_mc_seqno integer PRIMARY KEY,
+          observed_at bigint NOT NULL,
+          data jsonb NOT NULL
+        )`);
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_governance_snapshots_recent ON explorer_governance_snapshots(observed_at DESC,observed_mc_seqno DESC)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_address_labels_prefix ON explorer_address_labels(lower(label) text_pattern_ops)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_address_labels_address_prefix ON explorer_address_labels(address text_pattern_ops)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_contracts_name_prefix ON explorer_contracts(lower(COALESCE(data->>'name',data->>'title','')) text_pattern_ops)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_contracts_address_prefix ON explorer_contracts(address text_pattern_ops)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_assets_name_prefix ON explorer_assets(lower(COALESCE(data->>'jetton_name',data->>'jetton_symbol','')) text_pattern_ops)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_assets_address_prefix ON explorer_assets(address text_pattern_ops)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_transactions_hash_prefix ON explorer_transactions(lower(hash) text_pattern_ops)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_messages_hash_prefix ON explorer_messages(lower(hash) text_pattern_ops)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_verifications_address_prefix ON explorer_contract_verifications(address text_pattern_ops)");
+        await client.query("INSERT INTO projection_schema_migrations(version) VALUES (7)");
+      }
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -249,7 +280,7 @@ export class ProjectionDb {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      await client.query("TRUNCATE explorer_pool_snapshots, explorer_validator_sets, explorer_staking_cycles, explorer_staking_overview, explorer_asset_positions, explorer_asset_accounts, explorer_assets, explorer_messages, explorer_transactions, explorer_blocks, explorer_contracts");
+      await client.query("TRUNCATE explorer_governance_snapshots, explorer_asset_position_events, explorer_pool_snapshots, explorer_validator_sets, explorer_staking_cycles, explorer_staking_overview, explorer_asset_positions, explorer_asset_accounts, explorer_assets, explorer_messages, explorer_transactions, explorer_blocks, explorer_contracts RESTART IDENTITY");
       await client.query("DELETE FROM projection_meta WHERE key IN ('master_seqno', 'master_root')");
       await client.query("COMMIT");
     } catch (error) {
@@ -494,6 +525,15 @@ export class ProjectionDb {
     );
   }
 
+  async recordGovernanceSnapshot(snapshot: GovernanceSnapshot): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO explorer_governance_snapshots(observed_mc_seqno,observed_at,data)
+       VALUES($1,$2,$3)
+       ON CONFLICT(observed_mc_seqno) DO UPDATE SET observed_at=EXCLUDED.observed_at,data=EXCLUDED.data`,
+      [snapshot.observed_mc_seqno, snapshot.observed_at, snapshot],
+    );
+  }
+
   async pendingAssetAccounts(limit: number): Promise<string[]> {
     const result = await this.pool.query<{ address: string }>(
       "SELECT address FROM explorer_asset_accounts WHERE scanned_at<last_seen_at ORDER BY last_seen_at,address LIMIT $1",
@@ -511,6 +551,45 @@ export class ProjectionDb {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
+      const previous = await client.query<{
+        owner_address: string;
+        asset_address: string;
+        position_address: string | null;
+        kind: "jetton" | "nft_item";
+        last_lt: string;
+      }>(
+        `SELECT owner_address,asset_address,position_address,kind,last_lt::text
+         FROM explorer_asset_positions WHERE owner_address=$1`,
+        [owner],
+      );
+      const observedAt = Math.floor(Date.now() / 1000);
+      const next = [
+        ...jettons.map((position) => ({
+          owner_address: owner,
+          asset_address: position.jetton_master,
+          position_address: position.jetton_wallet,
+          kind: "jetton" as const,
+          last_lt: position.last_lt,
+        })),
+        ...nfts.map((position) => ({
+          owner_address: owner,
+          asset_address: position.nft_item,
+          position_address: position.nft_item,
+          kind: "nft_item" as const,
+          last_lt: position.last_lt,
+        })),
+      ];
+      const identity = (position: { asset_address: string; kind: string }) => `${position.kind}:${position.asset_address}`;
+      const previousByIdentity = new Map(previous.rows.map((position) => [identity(position), position]));
+      const nextByIdentity = new Map(next.map((position) => [identity(position), position]));
+      const positionEvents = [
+        ...next.filter((position) => {
+          const old = previousByIdentity.get(identity(position));
+          return !old || old.last_lt !== position.last_lt || old.position_address !== position.position_address;
+        }).map((position) => ({ ...position, event_type: "observed" as const })),
+        ...previous.rows.filter((position) => !nextByIdentity.has(identity(position)))
+          .map((position) => ({ ...position, event_type: "removed" as const })),
+      ];
       for (const asset of assets) {
         await client.query(
           `INSERT INTO explorer_assets(address,kind,updated_at,data) VALUES($1,$2,$3,$4)
@@ -531,6 +610,16 @@ export class ProjectionDb {
           `INSERT INTO explorer_asset_positions(owner_address,asset_address,position_address,kind,last_lt)
            VALUES($1,$2,$2,'nft_item',$3)`,
           [owner, position.nft_item, position.last_lt],
+        );
+      }
+      for (const event of positionEvents) {
+        await client.query(
+          `INSERT INTO explorer_asset_position_events
+            (owner_address,asset_address,position_address,kind,event_type,last_lt,observed_at)
+           VALUES($1,$2,$3,$4,$5,$6,$7)
+           ON CONFLICT(owner_address,asset_address,kind,last_lt,event_type) DO NOTHING`,
+          [event.owner_address, event.asset_address, event.position_address, event.kind,
+            event.event_type, event.last_lt, observedAt],
         );
       }
       await client.query(
