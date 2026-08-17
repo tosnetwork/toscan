@@ -47,8 +47,9 @@ suite("PostgreSQL projection", () => {
     db = new ProjectionDb(databaseUrl!);
     await db.migrate();
     await db.migrate();
-    expect(await db.schemaVersion()).toBe(5);
+    expect(await db.schemaVersion()).toBe(6);
     await db.resetChain();
+    await db.pool.query("TRUNCATE explorer_address_labels");
   });
 
   afterAll(async () => db.close());
@@ -167,6 +168,66 @@ suite("PostgreSQL projection", () => {
       cycles: [{ election_id: 100, rewards: "80000000" }],
       pool_records: [{ address: poolAddress, kind: "contract.pool.nominator", status: "staked" }],
     });
+    await app.close();
+  });
+
+  it("retains pool and validator evidence history without inventing reward attribution", async () => {
+    const poolAddress = `0:${"79".repeat(32)}`;
+    const poolData = {
+      validator_address: `0:${"80".repeat(32)}`, nominators_count: 1,
+      max_nominators_count: 40, total_balance_at_risk: "7000000000",
+      validator_reward_share_bps: 1000, min_nominator_stake: "100000000",
+      nominators: [{ address: `0:${"81".repeat(32)}`, amount: "6000000000", pending_deposit: "0", withdraw_requested: false }],
+    };
+    await db.replaceContracts("contract.pool.nominator", [{
+      address: poolAddress, kind: "contract.pool.nominator", creator: null, counterparty: null,
+      status: "active", deadline: null, last_seqno: 20, updated_at: 1_700_001_000, data: poolData,
+    }]);
+    await db.replaceContracts("contract.pool.nominator", [{
+      address: poolAddress, kind: "contract.pool.nominator", creator: null, counterparty: null,
+      status: "active", deadline: null, last_seqno: 21, updated_at: 1_700_001_100,
+      data: { ...poolData, total_balance_at_risk: "7100000000" },
+    }]);
+    const publicKey = "validator-public-key-proof";
+    for (const seqno of [500, 501]) {
+      await db.recordValidatorSet({
+        observed_mc_seqno: seqno,
+        observed_at: 1_700_001_000 + seqno,
+        validator_set: {
+          utime_since: 1_700_000_000, utime_until: 1_700_100_000,
+          total: 1, main: 1, total_weight: "100",
+          validators: [{ public_key: publicKey, adnl_address: "adnl-proof", weight: "100", cumulative_weight: "100" }],
+        },
+        signatures: [],
+      });
+    }
+    const app = buildServer(db, new Metrics());
+    const pool = await app.inject(`/explorer/staking/pools/${encodeURIComponent(poolAddress)}`);
+    expect(pool.statusCode).toBe(200);
+    expect(pool.json().result).toMatchObject({
+      pool: { address: poolAddress, data: { total_balance_at_risk: "7100000000" } },
+      history: [{ observed_at: 1_700_001_100 }, { observed_at: 1_700_001_000 }],
+    });
+    const validators = await app.inject("/explorer/validators");
+    expect(validators.json().result).toMatchObject({ observed_mc_seqno: 501 });
+    const validator = await app.inject(`/explorer/validators/${encodeURIComponent(publicKey)}`);
+    expect(validator.json().result).toMatchObject({
+      public_key: publicKey, selected_sets: 2, reward_attribution_available: false,
+      history: [{ observed_mc_seqno: 501 }, { observed_mc_seqno: 500 }],
+    });
+    await app.close();
+  });
+
+  it("serves evidence-bearing address labels and resolves exact names", async () => {
+    const address = `0:${"82".repeat(32)}`;
+    await db.pool.query(`INSERT INTO explorer_address_labels
+      (address,label,category,source,source_url,verified,updated_at)
+      VALUES($1,'Genesis Treasury','system','genesis manifest','https://tos.network',true,1700002000)`, [address]);
+    const app = buildServer(db, new Metrics());
+    const label = await app.inject(`/explorer/labels/${encodeURIComponent(address)}`);
+    expect(label.json().result).toMatchObject({ label: "Genesis Treasury", verified: true });
+    const search = await app.inject("/explorer/search?q=Genesis%20Treasury");
+    expect(search.json().result).toMatchObject({ kind: "label", result: { address } });
     await app.close();
   });
 

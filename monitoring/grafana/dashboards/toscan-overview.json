@@ -1,0 +1,23 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "panels": [
+    { "id": 1, "type": "stat", "title": "Masterchain head", "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 }, "targets": [{ "expr": "toscan_projection_head", "refId": "A" }] },
+    { "id": 2, "type": "stat", "title": "Projected head", "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 }, "targets": [{ "expr": "toscan_projection_indexed", "refId": "A" }] },
+    { "id": 3, "type": "stat", "title": "Projection lag", "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 }, "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 3 }, { "color": "red", "value": 10 }] } } }, "targets": [{ "expr": "toscan_projection_lag", "refId": "A" }] },
+    { "id": 4, "type": "stat", "title": "Source healthy", "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 }, "targets": [{ "expr": "toscan_projection_source_healthy", "refId": "A" }] },
+    { "id": 5, "type": "timeseries", "title": "Projection lag", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 }, "targets": [{ "expr": "toscan_projection_lag", "legendFormat": "blocks", "refId": "A" }] },
+    { "id": 6, "type": "timeseries", "title": "Public query latency", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }, "targets": [{ "expr": "histogram_quantile(0.50, sum by (le) (rate(toscan_query_duration_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "A" }, { "expr": "histogram_quantile(0.95, sum by (le) (rate(toscan_query_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "B" }, { "expr": "histogram_quantile(0.99, sum by (le) (rate(toscan_query_duration_seconds_bucket[5m])))", "legendFormat": "p99", "refId": "C" }] },
+    { "id": 7, "type": "timeseries", "title": "Query throughput", "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 }, "targets": [{ "expr": "sum(rate(toscan_query_duration_seconds_count[5m]))", "legendFormat": "requests / second", "refId": "A" }] },
+    { "id": 8, "type": "timeseries", "title": "Projection cycles and errors", "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 }, "targets": [{ "expr": "rate(toscan_projection_cycles_total[5m])", "legendFormat": "cycles", "refId": "A" }, { "expr": "rate(toscan_projection_errors_total[5m])", "legendFormat": "errors", "refId": "B" }] }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 40,
+  "tags": ["toscan", "tos"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "title": "TOSCAN Production Overview",
+  "uid": "toscan-overview",
+  "version": 1
+}

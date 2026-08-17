@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LoadState from "@/components/LoadState.vue";
+import ExportButton from "@/components/ExportButton.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import PaginationBar from "@/components/PaginationBar.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
@@ -20,7 +21,7 @@ const { data, loading, error, refresh } = useAsyncData(
 <template>
   <div class="container page-container">
     <PageHeading title="Agents" description="Chain-wide Agent Accounts with owner, controller and spending boundaries." eyebrow="AI economy">
-      <span class="source-label">Contract index</span>
+      <div class="heading-actions"><span class="source-label">Contract index</span><ExportButton filename="toscan-agents" :headers="['Address','Owner','Spent today','Daily limit','Active tasks','Seqno']" :rows="(data?.items ?? []).map((agent) => [agent.address,agent.owner,agent.spent_today,agent.daily_limit,agent.activeTasks,agent.seqno])" /></div>
     </PageHeading>
     <section class="surface page-surface">
       <div class="table-caption"><span>Agent accounts</span><span>{{ data?.total ?? 0 }} indexed</span></div>

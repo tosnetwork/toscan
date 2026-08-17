@@ -26,7 +26,7 @@ const { data, loading, error, refresh } = useAsyncData(getValidatorOverview, [],
           <div class="validator-list">
             <article v-for="(validator, index) in data.validator_set?.validators ?? []" :key="validator.public_key">
               <span class="validator-rank">{{ index + 1 }}</span>
-              <div><small>Validator public key</small><p class="mono">{{ validator.public_key }}</p><small>ADNL · {{ ratioPercent(validator.weight, data.validator_set?.total_weight ?? '0').toFixed(2) }}% weight</small><p class="mono muted">{{ compact(validator.adnl_address, 18, 14) }}</p></div>
+              <div><small>Validator public key</small><RouterLink class="mono validator-link" :to="{ name: 'validator', params: { publicKey: validator.public_key } }">{{ validator.public_key }}</RouterLink><small>ADNL · {{ ratioPercent(validator.weight, data.validator_set?.total_weight ?? '0').toFixed(2) }}% weight</small><p class="mono muted">{{ compact(validator.adnl_address, 18, 14) }}</p></div>
               <CopyButton :value="validator.public_key" label="validator public key" />
             </article>
             <p v-if="!data.validator_set?.validators.length" class="inline-empty">The current validator-set cell could not be decoded by this node version.</p>

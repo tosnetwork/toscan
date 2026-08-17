@@ -43,6 +43,8 @@ The same `QUERY_CONTRACT_SYNC_MS` interval refreshes Elector reward cycles and N
 - `/healthz` proves the query HTTP process is alive.
 - `/readyz` requires PostgreSQL, a healthy source, a recent successful projection/observer cycle and lag within the configured threshold.
 - `/metrics` exposes the node head, projected head, lag, projection cycles/errors, query request count and last successful projection time.
+- request latency uses stable Fastify route templates rather than raw URLs, preventing an address/hash from creating an unbounded Prometheus label;
+- projection-cycle duration exposes catch-up and source-refresh regressions without putting account identities in telemetry;
 - `/explorer/status` adds durable block/transaction/contract/asset totals and per-shard heads for the product UI.
 - `/explorer/staking` serves the last committed Elector/pool projection. Its `updated_at` is the evidence freshness boundary shown to clients.
 
@@ -53,6 +55,21 @@ Recommended alerts:
 - `toscan_projection_lag` grows for 10 minutes or exceeds the network's agreed freshness SLO;
 - query `/readyz` has no healthy replica;
 - PostgreSQL storage exceeds 75% or replication lag breaches the database SLO.
+
+The repository includes a local production-equivalent observability overlay:
+
+```bash
+docker compose -f compose.yaml -f compose.monitoring.yaml up --build -d
+```
+
+Prometheus is bound to `127.0.0.1:19090` and Grafana to `127.0.0.1:13000` by default. Override `PROMETHEUS_PORT`, `GRAFANA_PORT`, `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD`; never expose the local default password. The provisioned `TOSCAN / Projection and serving` dashboard covers lag, source health, cycle errors, projection duration and public query p95. Six checked alert rules cover missing telemetry, source failure, stale/lagging projection, repeated projection errors and high query latency.
+
+Validate the configuration before deployment:
+
+```bash
+docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+  --entrypoint promtool prom/prometheus:v3.5.0 check config /etc/prometheus/prometheus.yml
+```
 
 ## Recovery
 
@@ -67,6 +84,14 @@ The node-local `tosctl-indexer.db` is also rebuildable. Schema migrations that c
 
 A confirmed masterchain root mismatch causes both index paths to discard chain-derived state and replay. Block replacement deletes transactions retired by the old block before the canonical identities are inserted.
 
+Curated public address labels are operational metadata, not chain-derived state, and survive canonical reset/replay. Back up their reviewed manifest alongside the release. Import it transactionally with:
+
+```bash
+DATABASE_URL=postgresql://… pnpm labels:import ./labels.production.json
+```
+
+The manifest must be version 1. Each raw TOS address may appear once and includes `label`, `category`, `source`, optional HTTPS `source_url`, `verified`, and optional Unix `updated_at`. Validation rejects markup, control characters, duplicate addresses and non-HTTPS evidence links. Personal browser labels never enter PostgreSQL.
+
 ## Release gate
 
 Before promotion:
@@ -75,9 +100,17 @@ Before promotion:
 pnpm check
 pnpm test:e2e
 QUERY_INTEGRATION_DATABASE_URL=postgresql://toscan:toscan-local-only@127.0.0.1:55432/toscan_test pnpm test:query:integration
+QUERY_INTEGRATION_DATABASE_URL=postgresql://toscan:toscan-local-only@127.0.0.1:55432/toscan_test pnpm test:query:recovery
+QUERY_INTEGRATION_DATABASE_URL=postgresql://toscan:toscan-local-only@127.0.0.1:55432/toscan_test pnpm test:query:scale
 docker compose build
 ```
+
+The scale gate inserts one million transactions, verifies thousands of unique keyset-paginated records while concurrent newer rows arrive, requires the intended index plan, and enforces a one-second local p95 budget. The recovery gate repeatedly closes and reopens the projection database, verifies canonical reset/replay and tests advisory-lease takeover. Treat both as release gates, not optional benchmarks.
 
 The TOS repository must also pass `cargo test -p service` and `uv run python scripts/toscan-explorer-e2e.py`. TOSCAN CI invokes that native-chain gate with the browser hook, so validator → source index → PostgreSQL → gateway → browser is release-gated as one path.
 
 Promote only when PostgreSQL projection lag reaches zero (or the explicitly approved deployment threshold) and search resolves a recent base64 node block hash, transaction hash and seeded contract address.
+
+## Supply-chain release
+
+Every pull request and main-branch change runs production dependency audit, filesystem scanning and both production-image scans. A version tag publishes `toscan` and `toscan-query` to GHCR with BuildKit SBOM/provenance, signs each immutable digest keylessly through GitHub OIDC, and publishes a GitHub build attestation. Promotion must use the signed digest, never a mutable tag alone.

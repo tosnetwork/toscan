@@ -91,6 +91,44 @@ jobs:
           QUERY_INTEGRATION_DATABASE_URL: postgresql://toscan:toscan-ci@127.0.0.1:5432/toscan
         run: pnpm test:query:integration
 
+  production-data-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: toscan
+          POSTGRES_PASSWORD: toscan-ci
+          POSTGRES_DB: toscan_gates
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U toscan -d toscan_gates"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Repeated restart, replay and writer-failover gate
+        env:
+          QUERY_RECOVERY_DATABASE_URL: postgresql://toscan:toscan-ci@127.0.0.1:5432/toscan_gates
+        run: pnpm test:query:recovery
+      - name: Million-transaction keyset and query-plan gate
+        env:
+          QUERY_SCALE_DATABASE_URL: postgresql://toscan:toscan-ci@127.0.0.1:5432/toscan_gates
+          QUERY_SCALE_ROWS: "1000000"
+          QUERY_SCALE_P95_MS: "1000"
+        run: pnpm test:query:scale
+
   real-chain-browser:
     runs-on: ubuntu-24.04
     # A cold build of the TOS node on a two-core runner is most of this job.

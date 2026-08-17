@@ -5,6 +5,7 @@ const address = "0:8a76df4d2f8a57a8b4b78f2d63156496dde6f17bb1a3df86f367dd2d6ab0a
 const agent = "0:4bd621937f6f00f68169ad5843924e092b3f89f84a1abf283113e0b9c97e41c2";
 const service = "0:e59cd1e7780b9f6dac188fa9f15acc678efe5a86f524b6f879ae469aafd85036";
 const taskAddress = "0:91bd10a94892f3f1064f9e65a336a47d5ecfed4a0ea26d180b1375f9d4dc772a";
+const previewPool = `0:${"70".repeat(32)}`;
 
 test("explores chain and AI-economy entities through deterministic routes", async ({ page }) => {
   const pageErrors: string[] = [];
@@ -42,10 +43,38 @@ test("explores chain and AI-economy entities through deterministic routes", asyn
   await expect(page.getByText("What this proves")).toBeVisible();
 
   await page.goto(`/address/${address}`);
+  await page.getByRole("button", { name: "Add private label" }).click();
+  await page.getByLabel("Private label").fill("My operating wallet");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("My operating wallet")).toBeVisible();
   await page.getByRole("tab", { name: /Assets/ }).click();
   await page.getByRole("link", { name: /[0-9a-f]{5}/ }).first().click();
   await expect(page.getByRole("heading", { name: "TOS Preview Asset" })).toBeVisible();
   expect(pageErrors).toEqual([]);
+});
+
+test("staking, validator history, analytics and localization are explorable", async ({ page }) => {
+  await page.goto("/staking");
+  await expect(page.getByRole("heading", { name: "Completed reward cycles" })).toBeVisible();
+  await page.locator(`a[href="/staking/pool/${previewPool}"]`).click();
+  await expect(page.getByRole("heading", { name: "Nominator Pool" })).toBeVisible();
+  await expect(page.getByText("Pool stake history")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Nominator positions" })).toBeVisible();
+
+  await page.goto("/validators");
+  await page.locator('a[href^="/validator/"]').first().click();
+  await expect(page).toHaveURL(/\/validator\//);
+  await expect(page.getByRole("heading", { name: "Validator", exact: true })).toBeVisible();
+  await expect(page.getByText("Voting-weight history")).toBeVisible();
+
+  await page.goto("/analytics");
+  await expect(page.getByRole("heading", { name: "Network analytics" })).toBeVisible();
+  await expect(page.getByText("Transaction activity")).toBeVisible();
+
+  await page.getByLabel("Language").selectOption("zh-CN");
+  await expect(page.getByRole("heading", { name: "网络分析" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "网络分析" })).toBeVisible();
 });
 
 test("global search and keyboard shortcut resolve canonical identities", async ({ page }) => {
@@ -67,7 +96,7 @@ test("global search and keyboard shortcut resolve canonical identities", async (
 
 test("primary public routes have no serious or critical accessibility violations", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "chromium", "One desktop accessibility pass covers the shared DOM.");
-  const routes = ["/", "/blocks", "/transactions", "/assets", "/agents", "/tasks", "/disputes", "/services", "/economy", "/network", "/validators", "/staking", "/governance"];
+  const routes = ["/", "/blocks", "/transactions", "/assets", "/agents", "/tasks", "/disputes", "/services", "/economy", "/network", "/analytics", "/validators", "/validator/preview-validator-1", "/staking", `/staking/pool/${previewPool}`, "/governance"];
   for (const route of routes) {
     await page.goto(route);
     await expect(page.locator("main")).toBeVisible();

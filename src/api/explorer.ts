@@ -5,6 +5,7 @@ import type {
   AccountCapability,
   AccountDetail,
   AccountInfo,
+  AddressLabel,
   Agent,
   BlockDetail,
   BlockHeader,
@@ -28,16 +29,22 @@ import type {
   JettonPosition,
   ListResponse,
   MasterchainInfo,
+  NetworkAnalytics,
   NftPosition,
+  NominatorPoolData,
+  NominatorPoolDetail,
   Page,
   RawTransaction,
   Service,
   StakingData,
+  StakingCycle,
   Task,
   TransactionDetail,
   TransactionSummary,
   TokenData,
   ValidatorOverview,
+  ValidatorDetail,
+  ValidatorSetSnapshot,
   WalletEvent,
 } from "./types";
 import {
@@ -64,7 +71,7 @@ const rpc = new JsonRpcClient({
 const serviceApi = new HttpClient(import.meta.env.VITE_TOS_SERVICE_API_URL || "/tos-service-api");
 const previewEnabled = import.meta.env.VITE_ENABLE_PREVIEW === "true" || import.meta.env.DEV;
 
-async function withPreview<T>(live: () => Promise<T>, preview: () => T): Promise<T> {
+async function withPreview<T>(live: () => Promise<T>, preview: () => T | Promise<T>): Promise<T> {
   if (runtime.mode.value === "preview") return preview();
   try {
     const result = await live();
@@ -547,7 +554,7 @@ export async function getStakingData(): Promise<StakingData> {
       .then((value) => value.result),
     () => ({
       current_election_available: false,
-      reward_history_available: false,
+      reward_history_available: true,
       active_election_id: 0,
       election_closes_at: 0,
       current_election_stake: "0",
@@ -555,14 +562,187 @@ export async function getStakingData(): Promise<StakingData> {
       minimum_stake: "0",
       election_failed: false,
       election_finished: false,
-      pools: 0,
-      active_pools: 0,
-      nominators: 0,
-      total_pool_stake: "0",
+      pools: 1,
+      active_pools: 1,
+      nominators: 3,
+      total_pool_stake: "1000000000000",
       updated_at: Math.floor(Date.now() / 1000),
-      cycles: [],
-      pool_records: [],
+      cycles: previewRewardCycles(),
+      pool_records: [previewPool()],
     }),
+  );
+}
+
+function previewPool(): ExplorerContract<NominatorPoolData> {
+  const now = Math.floor(Date.now() / 1_000);
+  return {
+    address: `0:${"70".repeat(32)}`,
+    kind: "contract.pool.nominator",
+    creator: null,
+    counterparty: null,
+    status: "active",
+    deadline: null,
+    last_seqno: previewBlocks[0]?.seqno ?? 0,
+    updated_at: now,
+    data: {
+      state: 2,
+      nominators_count: 3,
+      stake_amount_sent: "0",
+      validator_amount: "300000000000",
+      nominator_stake: "700000000000",
+      total_balance_at_risk: "1000000000000",
+      validator_address: `-1:${"71".repeat(32)}`,
+      validator_reward_share_bps: 1_000,
+      max_nominators_count: 40,
+      min_validator_stake: "100000000000",
+      min_nominator_stake: "10000000000",
+      stake_at: now - 86_400,
+      saved_validator_set_hash: "preview-validator-set",
+      validator_set_changes_count: 4,
+      validator_set_change_time: now - 43_200,
+      stake_held_for: 86_400,
+      nominators: [1, 2, 3].map((index) => ({
+        address: `0:${String(71 + index).repeat(64).slice(0, 64)}`,
+        amount: String(index * 200_000_000_000),
+        pending_deposit: "0",
+        withdraw_requested: index === 3,
+      })),
+    },
+  };
+}
+
+function previewRewardCycles(): StakingCycle[] {
+  const now = Math.floor(Date.now() / 1_000);
+  return Array.from({ length: 12 }, (_, index) => ({
+    election_id: 1200 - index,
+    unfreeze_at: now - index * 86_400,
+    duration_seconds: 86_400,
+    total_stake: String(9_000_000_000_000 + index * 50_000_000_000),
+    rewards: String(90_000_000_000 + index * 500_000_000),
+    reward_rate: 0.01 + index * 0.00008,
+    annualized_apr: 3.65 + index * 0.0292,
+    compounded_apy: 36.78 + index * 0.5,
+    validator_count: 3,
+    vset_hash: `preview-vset-${1200 - index}`,
+    observed_at: now - index * 86_400,
+  }));
+}
+
+export async function getNominatorPoolDetail(address: string): Promise<NominatorPoolDetail> {
+  return withPreview(
+    () => serviceApi.get<{ ok: boolean; result: NominatorPoolDetail }>(
+      `/explorer/staking/pools/${encodeURIComponent(address)}`,
+    ).then((value) => value.result),
+    () => {
+      const pool = previewPool();
+      if (address !== pool.address) throw new Error("Nominator Pool not found");
+      return {
+        pool,
+        history: Array.from({ length: 16 }, (_, index) => ({
+          observed_at: pool.updated_at - index * 21_600,
+          status: pool.status,
+          last_seqno: pool.last_seqno - index,
+          data: {
+            ...pool.data,
+            total_balance_at_risk: String(BigInt(pool.data.total_balance_at_risk) - BigInt(index * 8_000_000_000)),
+            nominators_count: Math.max(1, pool.data.nominators_count - Math.floor(index / 6)),
+          },
+        })),
+        network_reward_cycles: previewRewardCycles(),
+      };
+    },
+  );
+}
+
+export async function getProjectedValidators(): Promise<ValidatorSetSnapshot> {
+  return withPreview(
+    () => serviceApi.get<{ ok: boolean; result: ValidatorSetSnapshot }>("/explorer/validators")
+      .then((value) => value.result),
+    async () => {
+      const live = await getValidatorOverview();
+      return {
+        observed_mc_seqno: live.id.seqno,
+        observed_at: Math.floor(Date.now() / 1_000),
+        validator_set: live.validator_set,
+        signatures: live.signatures,
+      };
+    },
+  );
+}
+
+export async function getValidatorDetail(publicKey: string): Promise<ValidatorDetail> {
+  return withPreview(
+    () => serviceApi.get<{ ok: boolean; result: ValidatorDetail }>(
+      `/explorer/validators/${encodeURIComponent(publicKey)}`,
+    ).then((value) => value.result),
+    async () => {
+      const current = await getProjectedValidators();
+      const member = current.validator_set?.validators.find((candidate) => candidate.public_key === publicKey);
+      if (!member) throw new Error("Validator not found");
+      const history = Array.from({ length: 18 }, (_, index) => ({
+        observed_mc_seqno: current.observed_mc_seqno - index * 100,
+        observed_at: current.observed_at - index * 21_600,
+        total_weight: current.validator_set?.total_weight ?? "0",
+        ...member,
+        weight: String(BigInt(member.weight) + BigInt((index % 4) * 3)),
+      }));
+      return {
+        public_key: publicKey,
+        current: history[0]!,
+        selected_sets: history.length,
+        first_observed_at: history.at(-1)?.observed_at ?? current.observed_at,
+        last_observed_at: current.observed_at,
+        history,
+        network_reward_cycles: previewRewardCycles(),
+        reward_attribution_available: false,
+      };
+    },
+  );
+}
+
+export async function getNetworkAnalytics(window: NetworkAnalytics["window"] = "7d"): Promise<NetworkAnalytics> {
+  return withPreview(
+    () => serviceApi.get<{ ok: boolean; result: NetworkAnalytics }>("/explorer/analytics", { window })
+      .then((value) => value.result),
+    () => {
+      const bucketSeconds = window === "24h" || window === "7d" ? 3_600 : 86_400;
+      const points = window === "24h" ? 24 : window === "7d" ? 7 * 24 : window === "30d" ? 30 : 90;
+      const now = Math.floor(Date.now() / bucketSeconds) * bucketSeconds;
+      return {
+        window,
+        bucket_seconds: bucketSeconds,
+        activity: Array.from({ length: points }, (_, index) => ({
+          bucket: now - (points - index - 1) * bucketSeconds,
+          blocks: 60 + (index % 7),
+          transactions: 280 + ((index * 37) % 190),
+          fees: String(4_000_000_000 + ((index * 110_000_000) % 3_000_000_000)),
+        })),
+        contracts: [{ kind: "agent_account", count: 18 }, { kind: "task_escrow", count: 42 }],
+        assets: [{ kind: "jetton", count: 4 }, { kind: "nft_item", count: 15 }],
+      };
+    },
+  );
+}
+
+export async function getAddressLabel(address: string): Promise<AddressLabel | null> {
+  return withPreview(
+    () => optional(
+      serviceApi.get<{ ok: boolean; result: AddressLabel }>(`/explorer/labels/${encodeURIComponent(address)}`)
+        .then((value) => value.result),
+      null,
+    ),
+    () => {
+      const pool = previewPool();
+      return address === pool.address ? {
+        address,
+        label: "Preview Nominator Pool",
+        category: pool.kind,
+        source: "preview fixture",
+        source_url: null,
+        verified: false,
+        updated_at: pool.updated_at,
+      } : null;
+    },
   );
 }
 

@@ -35,6 +35,10 @@ watch(data, (hit) => {
     void router.replace({ name: "token", params: { address: hit.result.address } });
     return;
   }
+  if (hit.kind === "label") {
+    void router.replace({ name: "address", params: { address: hit.result.address } });
+    return;
+  }
   const routeName = {
     agent_account: "agent",
     task_escrow: "task",

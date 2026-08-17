@@ -12,5 +12,8 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  projects: [{ name: "real-chain-chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "real-chain-chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "real-chain-mobile-chromium", use: { ...devices["Pixel 7"] } },
+  ],
 });

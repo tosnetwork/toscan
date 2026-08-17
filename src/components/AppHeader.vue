@@ -4,9 +4,11 @@ import AppIcon from "./AppIcon.vue";
 import BrandMark from "./BrandMark.vue";
 import GlobalSearch from "./GlobalSearch.vue";
 import { useTheme } from "@/composables/useTheme";
+import { useLocale, type Locale } from "@/i18n";
 
 const open = ref(false);
 const { theme, cycleTheme } = useTheme();
+const { locale, locales, setLocale, t } = useLocale();
 const networkName = (import.meta.env.VITE_TOS_NETWORK || "mainnet").toUpperCase();
 const navigation = [
   { to: "/blocks", label: "Blocks" },
@@ -18,6 +20,7 @@ const navigation = [
   { to: "/economy", label: "Economy" },
   { to: "/staking", label: "Staking" },
   { to: "/network", label: "Network" },
+  { to: "/analytics", label: "Analytics" },
 ];
 </script>
 
@@ -27,9 +30,10 @@ const navigation = [
       <BrandMark />
       <div class="header-search"><GlobalSearch /></div>
       <nav class="desktop-nav" aria-label="Primary navigation">
-        <RouterLink v-for="item in navigation" :key="item.to" :to="item.to">{{ item.label }}</RouterLink>
+        <RouterLink v-for="item in navigation" :key="item.to" :to="item.to">{{ t(item.label) }}</RouterLink>
       </nav>
       <div class="header-actions">
+        <label class="locale-picker"><span class="sr-only">Language</span><select :value="locale" aria-label="Language" @change="setLocale(($event.target as HTMLSelectElement).value as Locale)"><option v-for="item in locales" :key="item" :value="item">{{ item === 'en' ? 'EN' : item === 'zh-CN' ? '中文' : '日本語' }}</option></select></label>
         <span class="network-chip"><i></i>{{ networkName }}</span>
         <button class="icon-button" type="button" :title="`Theme: ${theme}`" :aria-label="`Change theme. Current: ${theme}`" @click="cycleTheme">
           <AppIcon name="sun" />
@@ -42,7 +46,7 @@ const navigation = [
     <div v-if="open" class="mobile-panel">
       <GlobalSearch />
       <nav aria-label="Mobile navigation">
-        <RouterLink v-for="item in navigation" :key="item.to" :to="item.to" @click="open = false">{{ item.label }}</RouterLink>
+        <RouterLink v-for="item in navigation" :key="item.to" :to="item.to" @click="open = false">{{ t(item.label) }}</RouterLink>
       </nav>
     </div>
   </header>

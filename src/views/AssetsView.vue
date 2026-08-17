@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import ExportButton from "@/components/ExportButton.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import PaginationBar from "@/components/PaginationBar.vue";
@@ -22,7 +23,7 @@ watch(kind, () => pagination.reset());
 <template>
   <div class="container page-container">
     <PageHeading title="Assets" description="Jetton masters, NFT items and collections discovered from verified account positions." eyebrow="On-chain assets">
-      <select v-model="kind" class="filter-select" aria-label="Filter asset kind"><option value="">All assets</option><option value="jetton">Jettons</option><option value="nft_item">NFT items</option><option value="nft_collection">NFT collections</option></select>
+      <div class="heading-actions"><select v-model="kind" class="filter-select" aria-label="Filter asset kind"><option value="">All assets</option><option value="jetton">Jettons</option><option value="nft_item">NFT items</option><option value="nft_collection">NFT collections</option></select><ExportButton filename="toscan-assets" :headers="['Address','Kind','Holders','Updated at']" :rows="(data?.items ?? []).map((asset) => [asset.address,asset.kind,asset.holder_count,asset.updated_at])" /></div>
     </PageHeading>
     <section class="surface page-surface">
       <LoadState :loading="loading" :error="error" :empty="Boolean(data && !data.items.length)" empty-title="No assets discovered yet" @retry="refresh">

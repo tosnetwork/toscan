@@ -20,6 +20,7 @@ defineProps<{ name: string; size?: number }>();
     <path v-else-if="name === 'network'" d="M12 4a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM4 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm16 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM12 24a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0-20v6m-6 2h12m-6 2v6" />
     <path v-else-if="name === 'wallet'" d="M3 6h15a2 2 0 0 1 2 2v11H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h13v3m1 6h4v4h-4a2 2 0 0 1 0-4Z" />
     <path v-else-if="name === 'clock'" d="M12 7v5l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    <path v-else-if="name === 'download'" d="M12 3v12m0 0 5-5m-5 5-5-5M4 19h16" />
     <path v-else d="M12 3v12m0 5v.01" />
   </svg>
 </template>

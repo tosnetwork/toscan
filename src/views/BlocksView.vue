@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import BlockRows from "@/components/BlockRows.vue";
+import ExportButton from "@/components/ExportButton.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import PaginationBar from "@/components/PaginationBar.vue";
@@ -18,7 +19,7 @@ const { data, loading, error, refresh } = useAsyncData(
 
 <template>
   <div class="container page-container">
-    <PageHeading title="Blocks" description="Finalized blocks across all indexed shards, newest first." eyebrow="Chain" />
+    <PageHeading title="Blocks" description="Finalized blocks across all indexed shards, newest first." eyebrow="Chain"><ExportButton filename="toscan-blocks" :headers="['Workchain','Shard','Seqno','Root hash','File hash','Time','Transactions']" :rows="(data?.items ?? []).map((block) => [block.workchain,block.shard,block.seqno,block.root_hash,block.file_hash,block.time,block.txCount])" /></PageHeading>
     <section class="surface page-surface">
       <div class="table-caption"><span>All indexed shards</span><span>{{ data?.total?.toLocaleString() ?? "—" }} blocks</span></div>
       <LoadState :loading="loading" :error="error" :empty="!data?.items.length" @retry="refresh"><BlockRows :blocks="data?.items ?? []" /></LoadState>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import AppIcon from "./AppIcon.vue";
+import { useLocale } from "@/i18n";
 
 const props = defineProps<{ total: number; offset: number; limit: number; complete?: boolean; cursorMode?: boolean; nextCursor?: string | null }>();
 const emit = defineEmits<{ change: [offset: number]; navigate: [direction: "previous" | "next"] }>();
@@ -8,6 +9,7 @@ const first = computed(() => props.total === 0 ? 0 : props.offset + 1);
 const last = computed(() => Math.min(props.offset + props.limit, props.total));
 const canPrevious = computed(() => props.offset > 0);
 const canNext = computed(() => props.cursorMode ? Boolean(props.nextCursor) : props.offset + props.limit < props.total);
+const { t } = useLocale();
 </script>
 
 <template>
@@ -19,10 +21,10 @@ const canNext = computed(() => props.cursorMode ? Boolean(props.nextCursor) : pr
     </p>
     <div>
       <button type="button" :disabled="!canPrevious" aria-label="Previous page" @click="cursorMode ? emit('navigate', 'previous') : emit('change', Math.max(0, offset - limit))">
-        <AppIcon name="chevron" :size="15" /> Previous
+        <AppIcon name="chevron" :size="15" /> {{ t('Previous') }}
       </button>
       <button type="button" :disabled="!canNext" aria-label="Next page" @click="cursorMode ? emit('navigate', 'next') : emit('change', offset + limit)">
-        Next <AppIcon name="chevron" :size="15" />
+        {{ t('Next') }} <AppIcon name="chevron" :size="15" />
       </button>
     </div>
   </nav>

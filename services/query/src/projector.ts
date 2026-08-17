@@ -2,7 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
 import { TosRpc } from "./rpc.js";
-import type { ContractListResponse, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, TokenData } from "./types.js";
+import type { ContractListResponse, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, TokenData, ValidatorSetConfig } from "./types.js";
 
 export const CONTRACT_KINDS = [
   "agent_account",
@@ -81,6 +81,7 @@ export class Projector {
     if (Date.now() - this.lastContractSync >= this.options.contractSyncMs) {
       await this.syncContracts();
       await this.syncStaking();
+      await this.syncValidators(headSeqno);
       this.lastContractSync = Date.now();
     }
     await this.syncAssets();
@@ -91,6 +92,7 @@ export class Projector {
 
   async run(signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
+      const started = performance.now();
       try {
         await this.cycle();
       } catch (error) {
@@ -98,6 +100,8 @@ export class Projector {
         this.metrics.lastProjectionError = Math.floor(Date.now() / 1000);
         this.metrics.sourceHealthy = false;
         console.error("projection cycle failed", error);
+      } finally {
+        this.metrics.observeProjection((performance.now() - started) / 1_000);
       }
       await delay(this.options.pollMs, undefined, { signal }).catch(() => undefined);
     }
@@ -126,6 +130,22 @@ export class Projector {
     });
     if (!response.ok) throw new Error(`staking sync failed (${response.status})`);
     await this.db.replaceStaking(await response.json() as ExplorerStakingResponse);
+  }
+
+  private async syncValidators(headSeqno: number): Promise<void> {
+    const [config, proof] = await Promise.all([
+      this.rpc.call<{ validator_set?: ValidatorSetConfig }>("getConfigParam", { param: 34, seqno: headSeqno }),
+      this.rpc.call<{ signatures?: Array<{ node_id_short: string; signature: string }> }>(
+        "getMasterchainBlockSignatures",
+        { seqno: headSeqno },
+      ),
+    ]);
+    await this.db.recordValidatorSet({
+      observed_mc_seqno: headSeqno,
+      observed_at: Math.floor(Date.now() / 1000),
+      validator_set: config.validator_set ?? null,
+      signatures: proof.signatures ?? [],
+    });
   }
 
   private assetKind(data: TokenData): ExplorerAsset["kind"] | null {

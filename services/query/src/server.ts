@@ -164,7 +164,15 @@ export function buildServer(
   readiness: ReadinessOptions = { maxLag: 2, maxStaleSeconds: 30 },
 ): FastifyInstance {
   const app = Fastify({ logger: true, trustProxy: true, bodyLimit: 65_536 });
-  app.addHook("onRequest", async () => { metrics.queryRequests += 1; });
+  const requestStarted = new WeakMap<object, bigint>();
+  app.addHook("onRequest", async (request) => { requestStarted.set(request, process.hrtime.bigint()); });
+  app.addHook("onResponse", async (request, reply) => {
+    const started = requestStarted.get(request);
+    if (!started) return;
+    const route = request.routeOptions.url || "unmatched";
+    const seconds = Number(process.hrtime.bigint() - started) / 1_000_000_000;
+    metrics.observeRequest(request.method, route, reply.statusCode, seconds);
+  });
   app.setErrorHandler((error: FastifyError, _request, reply) => {
     const status = error.statusCode && error.statusCode < 500 ? error.statusCode : 500;
     if (status === 500) app.log.error(error);
@@ -358,6 +366,171 @@ export function buildServer(
     } };
   });
 
+  app.get<{ Params: { address: string } }>("/explorer/staking/pools/:address", async (request, reply) => {
+    const address = request.params.address.toLowerCase();
+    if (!ADDRESS.test(address)) throw Object.assign(new Error("invalid TOS address"), { statusCode: 400 });
+    const [pool, history, cycles] = await Promise.all([
+      db.pool.query(
+        "SELECT * FROM explorer_contracts WHERE kind='contract.pool.nominator' AND address=$1",
+        [address],
+      ),
+      db.pool.query(
+        `SELECT observed_at::text,status,last_seqno,data FROM explorer_pool_snapshots
+         WHERE address=$1 ORDER BY observed_at DESC LIMIT 512`,
+        [address],
+      ),
+      db.pool.query(
+        `SELECT election_id::text,unfreeze_at::text,duration_seconds::text,total_stake::text,
+                rewards::text,reward_rate,annualized_apr,compounded_apy,validator_count,
+                vset_hash,observed_at::text
+         FROM explorer_staking_cycles ORDER BY election_id DESC LIMIT 128`,
+      ),
+    ]);
+    if (!pool.rows[0]) {
+      return reply.code(404).send({ ok: false, error: { message: "Nominator Pool is not indexed" } });
+    }
+    return { ok: true, result: {
+      pool: contract(pool.rows[0]),
+      history: history.rows.map((row) => ({ ...row, observed_at: Number(row.observed_at) })),
+      network_reward_cycles: cycles.rows.map((row) => ({
+        ...row,
+        election_id: Number(row.election_id),
+        unfreeze_at: Number(row.unfreeze_at),
+        duration_seconds: Number(row.duration_seconds),
+        observed_at: Number(row.observed_at),
+      })),
+    } };
+  });
+
+  app.get("/explorer/validators", async (_request, reply) => {
+    const latest = await db.pool.query(
+      "SELECT observed_mc_seqno,observed_at,data FROM explorer_validator_sets ORDER BY observed_mc_seqno DESC LIMIT 1",
+    );
+    if (!latest.rows[0]) {
+      return reply.code(503).send({ ok: false, error: { message: "validator projection has not completed" } });
+    }
+    return { ok: true, result: latest.rows[0].data };
+  });
+
+  app.get<{ Params: { publicKey: string } }>("/explorer/validators/:publicKey", async (request, reply) => {
+    const publicKey = request.params.publicKey;
+    if (!/^[A-Za-z0-9_+\-/=]{8,256}$/.test(publicKey)) {
+      throw Object.assign(new Error("invalid validator public key"), { statusCode: 400 });
+    }
+    const [sets, cycles] = await Promise.all([
+      db.pool.query("SELECT observed_mc_seqno,observed_at,data FROM explorer_validator_sets ORDER BY observed_mc_seqno DESC LIMIT 2048"),
+      db.pool.query(
+        `SELECT election_id::text,unfreeze_at::text,duration_seconds::text,total_stake::text,
+                rewards::text,reward_rate,annualized_apr,compounded_apy,validator_count,
+                vset_hash,observed_at::text
+         FROM explorer_staking_cycles ORDER BY election_id DESC LIMIT 128`,
+      ),
+    ]);
+    const history = sets.rows.flatMap((row) => {
+      const snapshot = row.data as {
+        observed_mc_seqno: number;
+        observed_at: number;
+        validator_set?: { total_weight?: string; validators?: Array<Record<string, unknown>> } | null;
+      };
+      const member = snapshot.validator_set?.validators?.find((candidate) => candidate.public_key === publicKey);
+      return member ? [{
+        observed_mc_seqno: snapshot.observed_mc_seqno ?? row.observed_mc_seqno,
+        observed_at: snapshot.observed_at ?? Number(row.observed_at),
+        total_weight: snapshot.validator_set?.total_weight ?? "0",
+        ...member,
+      }] : [];
+    });
+    if (!history.length) {
+      return reply.code(404).send({ ok: false, error: { message: "validator is not present in retained set history" } });
+    }
+    return { ok: true, result: {
+      public_key: publicKey,
+      current: history[0],
+      selected_sets: history.length,
+      first_observed_at: history.at(-1)?.observed_at ?? history[0]?.observed_at,
+      last_observed_at: history[0]?.observed_at,
+      history,
+      network_reward_cycles: cycles.rows.map((row) => ({
+        ...row,
+        election_id: Number(row.election_id),
+        unfreeze_at: Number(row.unfreeze_at),
+        duration_seconds: Number(row.duration_seconds),
+        observed_at: Number(row.observed_at),
+      })),
+      reward_attribution_available: false,
+    } };
+  });
+
+  app.get("/explorer/analytics", async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const window = String(query.window ?? "7d");
+    const windows: Record<string, { seconds: number; bucket: string }> = {
+      "24h": { seconds: 86_400, bucket: "hour" },
+      "7d": { seconds: 604_800, bucket: "hour" },
+      "30d": { seconds: 2_592_000, bucket: "day" },
+      "90d": { seconds: 7_776_000, bucket: "day" },
+    };
+    const selected = windows[window];
+    if (!selected) throw Object.assign(new Error("unsupported analytics window"), { statusCode: 400 });
+    const since = Math.floor(Date.now() / 1000) - selected.seconds;
+    const [activity, contracts, assets] = await Promise.all([
+      db.pool.query(
+        `SELECT extract(epoch from date_trunc($1,to_timestamp(b.gen_utime)))::bigint::text bucket,
+                count(DISTINCT (b.workchain,b.shard,b.seqno))::int blocks,
+                count(t.hash)::int transactions,
+                COALESCE(sum(t.fee),0)::text fees
+         FROM explorer_blocks b LEFT JOIN explorer_transactions t
+           ON t.workchain=b.workchain AND t.shard=b.shard AND t.seqno=b.seqno
+         WHERE b.gen_utime >= $2
+         GROUP BY 1 ORDER BY 1`,
+        [selected.bucket, since],
+      ),
+      db.pool.query("SELECT kind,count(*)::int count FROM explorer_contracts GROUP BY kind ORDER BY kind"),
+      db.pool.query("SELECT kind,count(*)::int count FROM explorer_assets GROUP BY kind ORDER BY kind"),
+    ]);
+    return { ok: true, result: {
+      window,
+      bucket_seconds: selected.bucket === "hour" ? 3_600 : 86_400,
+      activity: activity.rows.map((row) => ({ ...row, bucket: Number(row.bucket) })),
+      contracts: contracts.rows,
+      assets: assets.rows,
+    } };
+  });
+
+  app.get<{ Params: { address: string } }>("/explorer/labels/:address", async (request, reply) => {
+    const address = request.params.address.toLowerCase();
+    if (!ADDRESS.test(address)) throw Object.assign(new Error("invalid TOS address"), { statusCode: 400 });
+    const [curated, indexed] = await Promise.all([
+      db.pool.query("SELECT address,label,category,source,source_url,verified,updated_at::text FROM explorer_address_labels WHERE address=$1", [address]),
+      db.pool.query("SELECT kind,data FROM explorer_contracts WHERE address=$1", [address]),
+    ]);
+    if (curated.rows[0]) {
+      return { ok: true, result: { ...curated.rows[0], updated_at: Number(curated.rows[0].updated_at) } };
+    }
+    if (indexed.rows[0]) {
+      const names: Record<string, string> = {
+        agent_account: "Agent Account",
+        task_escrow: "Task Escrow",
+        dispute: "Dispute",
+        service_actor: "Service Actor",
+        capability_registry: "Capability Registry",
+        aipow_commitment: "AIPoW Commitment",
+        aipow_distributor: "AIPoW Distributor",
+        "contract.pool.nominator": "Nominator Pool",
+      };
+      return { ok: true, result: {
+        address,
+        label: names[indexed.rows[0].kind] ?? indexed.rows[0].kind,
+        category: indexed.rows[0].kind,
+        source: "code-hash classification",
+        source_url: null,
+        verified: true,
+        updated_at: 0,
+      } };
+    }
+    return reply.code(404).send({ ok: false, error: { message: "address has no public label" } });
+  });
+
   app.get("/explorer/assets", async (request) => {
     const query = request.query as Record<string, unknown>;
     const { offset, limit } = page(query);
@@ -503,6 +676,13 @@ export function buildServer(
       [hashCandidates(q)],
     );
     if (foundBlock.rows[0]) return { ok: true, result: { kind: "block", result: block(foundBlock.rows[0]) } };
+    const foundLabel = await db.pool.query(
+      "SELECT address,label,category,source,source_url,verified,updated_at::text FROM explorer_address_labels WHERE lower(label)=lower($1) LIMIT 1",
+      [q],
+    );
+    if (foundLabel.rows[0]) {
+      return { ok: true, result: { kind: "label", result: { ...foundLabel.rows[0], updated_at: Number(foundLabel.rows[0].updated_at) } } };
+    }
     if (ADDRESS.test(q)) {
       const foundAsset = await db.pool.query(
         `SELECT a.*,(SELECT count(*) FROM explorer_asset_positions p WHERE p.asset_address=a.address) holder_count

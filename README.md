@@ -8,15 +8,16 @@ The application is an original Vue 3 implementation designed specifically for TO
 
 | Area | Routes | Coverage |
 | --- | --- | --- |
-| Overview and search | `/`, `/search` | Chain tip, recent activity, exact transaction/block hash search, address routing, Agent/Task/Service summaries |
+| Overview and search | `/`, `/search` | Chain tip, recent activity, exact transaction/block hash and evidence-backed public-label search, address routing, Agent/Task/Service summaries |
 | Blocks | `/blocks`, `/block/:workchain/:shard/:seqno` | Chain-wide indexed pagination, canonical hashes and time, headers, logical-time range, complete paginated transactions |
 | Transactions and messages | `/transactions`, `/tx/:account/:lt/:hash`, `/message/:hash` | Chain-wide keyset pagination, compute/action outcomes and message causality |
-| Accounts | `/address/:address` | Balance, complete indexed transaction history, wallet events, Jetton/NFT ownership and programmable authority |
+| Accounts | `/address/:address` | Balance, complete indexed transaction history, wallet events, Jetton/NFT ownership, programmable authority, evidence-backed public labels and browser-private personal labels |
 | Assets | `/assets`, `/token/:address` | Position-backed Jetton/NFT discovery, observed holders, node-authoritative getters and safe metadata display |
 | Agent economy | `/economy`, `/agents`, `/agent/:address`, `/tasks`, `/task/:address`, `/disputes`, `/dispute/:address`, `/services`, `/service/:address` | Market totals, lifecycle distribution, chain-wide discovery, policy boundaries, evidence and rulings |
-| Consensus, staking and governance | `/network`, `/validators`, `/staking`, `/governance` | Health, proof-decoded validator membership/weight, realized Elector reward cycles, code-verified Nominator Pools, observed signatures and configuration cells |
+| Consensus, staking and governance | `/network`, `/validators`, `/validator/:publicKey`, `/staking`, `/staking/pool/:address`, `/governance` | Health, proof-decoded validator membership and selection history, realized Elector reward cycles, pool stake/member history, code-verified Nominator Pools, observed signatures and configuration cells |
+| Analytics and exports | `/analytics` plus list-page CSV actions | Chain-derived 24-hour/7-day/30-day/90-day activity series and auditable CSV exports of the currently loaded evidence window |
 
-All durable list pages use versioned opaque keyset cursors, so concurrent new blocks do not duplicate or skip older rows while a user paginates. Time-sensitive pages poll while visible and pause in background tabs. Preview data is permitted only when explicitly enabled and is always identified by a persistent banner.
+All durable list pages use versioned opaque keyset cursors, so concurrent new blocks do not duplicate or skip older rows while a user paginates. Time-sensitive pages poll while visible and pause in background tabs. The interface ships English, Simplified Chinese and Japanese navigation/core journeys, responsive desktop/mobile layouts and accessible SVG charts. Preview data is permitted only when explicitly enabled and is always identified by a persistent banner.
 
 ## Architecture
 
@@ -41,7 +42,7 @@ The indexer:
 - exposes only public, read-only `/explorer/*` routes to TOSCAN;
 - reports the node head, indexed head and lag for operational visibility.
 
-The source index's canonical replay and the query service's ordered PostgreSQL migrations are independently versioned. PostgreSQL migration version 5 covers messages/execution, asset discovery, matched-build attestations and staking reward projections; startup refuses a database created by a newer unsupported service.
+The source index's canonical replay and the query service's ordered PostgreSQL migrations are independently versioned. PostgreSQL migration version 6 covers messages/execution, asset discovery, matched-build attestations, staking reward/pool history, validator-set snapshots and curated address labels; startup refuses a database created by a newer unsupported service.
 
 ## Local development
 
@@ -94,11 +95,13 @@ Terminate TLS at the ingress/load balancer. The container exposes port `8080`, i
 
 The gateway does **not** proxy the node's general `/jsonRPC` endpoint. It exposes exact POST REST paths for only the read methods TOSCAN uses. Transaction submission, delegation/session/agent mutation and every `tosctld` operator route remain unreachable from the public explorer origin.
 
-The query service exposes `/healthz`, a projection-aware `/readyz`, and Prometheus `/metrics`. Readiness fails closed before the first cycle, while the source is unhealthy, when projection is stale, or when lag exceeds the configured SLO. Canonical replacement, transactions, messages and checkpoint updates commit atomically; a confirmed masterchain reorg resets and replays the recoverable projection.
+The query service exposes `/healthz`, a projection-aware `/readyz`, and Prometheus `/metrics`. Readiness fails closed before the first cycle, while the source is unhealthy, when projection is stale, or when lag exceeds the configured SLO. Metrics include bounded route-template request latency, projection-cycle duration, lag and source health. The optional monitoring overlay provisions Prometheus alerts and a Grafana dashboard with `docker compose -f compose.yaml -f compose.monitoring.yaml up --build -d`. Canonical replacement, transactions, messages and checkpoint updates commit atomically; a confirmed masterchain reorg resets and replays the recoverable projection.
 
 Matched contract builds are imported offline with `pnpm verification:import <manifest.json>`. The importer reads deployed code from the node and records an attestation only when the manifest's code BOC is byte-for-byte identical. The public explorer exposes read-only results and has no verification upload endpoint.
 
-See [Production Operations](docs/OPERATIONS.md) for topology, scaling, alerts, backups and recovery, and [Staking Data Provenance](docs/STAKING_DATA_PROVENANCE.md) for the TONViewer analysis and TOS evidence model.
+Curated public address labels are also an offline, reviewed data product: `DATABASE_URL=… pnpm labels:import <manifest.json>`. Every record names its evidence source and optional HTTPS source URL. Personal labels never enter TOSCAN servers; they remain in the current browser's local storage.
+
+See [Production Operations](docs/OPERATIONS.md) for topology, scaling, alerts, backups and recovery, [P1/P2 Production Readiness](docs/PRODUCTION_READINESS.md) for the release acceptance matrix, and [Staking Data Provenance](docs/STAKING_DATA_PROVENANCE.md) for the staking research and TOS evidence model.
 
 ## Data contracts
 
@@ -119,6 +122,10 @@ Public `tosctld` reads include:
 - `/explorer/message`, `/explorer/assets`, `/explorer/assets/{address}`;
 - `/explorer/economy`, `/explorer/verifications/{address}`;
 - `/explorer/staking` (Elector election/reward state plus code-verified Nominator Pool totals);
+- `/explorer/staking/pools/{address}` (retained on-chain pool observations and current members);
+- `/explorer/validators`, `/explorer/validators/{publicKey}` (proof-decoded validator set history and observed proof signatures);
+- `/explorer/analytics?window=24h|7d|30d|90d` (chain-derived activity buckets);
+- `/explorer/labels/{address}` (reviewed public address-label evidence);
 - `/explorer/contracts/{kind}`, `/explorer/contracts/{kind}/{address}`;
 - `/explorer/search`.
 
@@ -133,7 +140,9 @@ Page components depend only on normalized models in `src/api/`; transport and ch
 5. A “Build matched” badge proves deployed code BOC equality with the submitted build artifact. Source reproducibility still depends on the displayed compiler, commit, digest and build instructions.
 6. Off-chain AI execution is not inferred from a contract status. TOSCAN distinguishes chain-enforced commercial state from optional evidence or attestation commitments.
 7. Staking APR/APY is an annualization of rewards already recorded by Elector. It is historical evidence, not a promised future return. Pool contracts enter the view only after their deployed code hash matches the canonical TOS Nominator Pool code.
-8. TOSCAN is read-only. It deliberately contains no wallet connection, signing or transaction-submission path.
+8. Validator-set membership, weight and observed proof signatures are attributable to a validator public key. Individual validator rewards are not exposed until the chain supplies equally attributable evidence; TOSCAN does not divide aggregate rewards by weight and present that estimate as fact.
+9. CSV export contains only the currently loaded evidence window and names the export time; it is not silently presented as an all-history dump.
+10. TOSCAN is read-only. It deliberately contains no wallet connection, signing or transaction-submission path.
 
 ## Quality gates
 
@@ -141,10 +150,13 @@ Page components depend only on normalized models in `src/api/`; transport and ch
 pnpm check
 pnpm exec playwright install chromium
 pnpm test:e2e
+QUERY_INTEGRATION_DATABASE_URL=postgresql://… pnpm test:query:recovery
+QUERY_INTEGRATION_DATABASE_URL=postgresql://… pnpm test:query:scale
 docker build -t toscan:verify .
+docker build -f Dockerfile.query -t toscan-query:verify .
 ```
 
-CI enforces linting, TypeScript checks, unit tests, ordered PostgreSQL migration/integration tests, the production build, desktop/mobile browser journeys, serious/critical accessibility checks and production container builds.
+CI enforces linting, TypeScript checks, unit tests, ordered PostgreSQL migration/integration tests, deterministic reopen/failover recovery, a one-million-transaction keyset/latency gate, the production build, desktop/mobile browser journeys, serious/critical accessibility checks and production container builds. Separate security gates reject high-severity production dependency advisories, generate a CycloneDX SBOM and scan the filesystem and both images. Tagged releases publish provenance-bearing images, sign their immutable digests with GitHub OIDC and attach GitHub build attestations.
 
 The real-chain browser gate builds and boots a native validator, deploys all five Agent Economy contracts and a funded Nominator Pool, catches PostgreSQL up to zero lag, then drives the Vue UI through execution, message paths, economy, validators and staking with preview disabled. The TOS data-path gate also verifies route isolation, decoded validator configuration, Elector reward delivery, code-hash pool discovery and durable explorer restart recovery.
 

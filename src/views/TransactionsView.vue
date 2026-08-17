@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import LoadState from "@/components/LoadState.vue";
+import ExportButton from "@/components/ExportButton.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import PaginationBar from "@/components/PaginationBar.vue";
 import TransactionRows from "@/components/TransactionRows.vue";
@@ -18,7 +19,7 @@ const { data, loading, error, refresh } = useAsyncData(
 
 <template>
   <div class="container page-container">
-    <PageHeading title="Transactions" description="Recent account state changes observed in finalized blocks." eyebrow="Chain" />
+    <PageHeading title="Transactions" description="Recent account state changes observed in finalized blocks." eyebrow="Chain"><ExportButton filename="toscan-transactions" :headers="['Hash','Account','LT','Time','Fee','Workchain','Shard','Seqno']" :rows="(data?.items ?? []).map((tx) => [tx.hash,tx.account,tx.lt,tx.time,tx.fee,tx.block?.workchain,tx.block?.shard,tx.block?.seqno])" /></PageHeading>
     <section class="surface page-surface">
       <div class="table-caption"><span>Chain-wide activity</span><span>{{ data?.complete ? `${data.total.toLocaleString()} indexed` : "Rolling node window" }}</span></div>
       <LoadState :loading="loading" :error="error" :empty="!data?.items.length" @retry="refresh"><TransactionRows :transactions="data?.items ?? []" /></LoadState>

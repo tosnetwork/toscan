@@ -46,4 +46,15 @@ describe("query readiness", () => {
     expect((await app.inject("/explorer/contracts/task_escrow?deadline_after=tomorrow")).statusCode).toBe(400);
     await app.close();
   });
+
+  it("exports bounded route-template latency metrics without address-cardinality labels", async () => {
+    const metrics = new Metrics();
+    const app = buildServer(database(), metrics);
+    await app.inject("/healthz");
+    const response = await app.inject("/metrics");
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain('toscan_query_duration_seconds_count{method="GET",route="/healthz",status="200"} 1');
+    expect(response.body).not.toContain("127.0.0.1");
+    await app.close();
+  });
 });

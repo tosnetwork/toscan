@@ -3,12 +3,13 @@ import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import AppIcon from "@/components/AppIcon.vue";
 import CopyButton from "@/components/CopyButton.vue";
+import AddressLabelEditor from "@/components/AddressLabelEditor.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import PaginationBar from "@/components/PaginationBar.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import TransactionRows from "@/components/TransactionRows.vue";
-import { getAccount, getAccountTransactionsPage, getContractVerification } from "@/api/explorer";
+import { getAccount, getAccountTransactionsPage, getAddressLabel, getContractVerification } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { useCursorPagination } from "@/composables/useCursorPagination";
 import { compact, formatDate, formatInteger, formatTos, timeAgo } from "@/utils/format";
@@ -21,6 +22,7 @@ const transactionLimit = 50;
 const transactionPagination = useCursorPagination(transactionLimit);
 const { data, loading, error, refresh } = useAsyncData(() => getAccount(address.value), [address]);
 const { data: verification } = useAsyncData(() => getContractVerification(address.value), [address]);
+const { data: publicLabel } = useAsyncData(() => getAddressLabel(address.value), [address]);
 const { data: transactionPage, loading: transactionsLoading, error: transactionsError, refresh: refreshTransactions } = useAsyncData(
   () => getAccountTransactionsPage(address.value, transactionPagination.offset.value, transactionLimit, transactionPagination.cursor.value),
   [address, transactionPagination.cursor],
@@ -37,7 +39,7 @@ watch(address, () => transactionPagination.reset());
     <LoadState :loading="loading" :error="error" @retry="refresh">
       <template v-if="data">
         <section class="surface account-card">
-          <div class="account-identity"><span class="entity-glyph entity-glyph--account"><AppIcon name="wallet" :size="23" /></span><div><small>TOS account</small><p class="mono">{{ data.address }}</p></div><CopyButton :value="data.address" label="address" /></div>
+          <div class="account-identity"><span class="entity-glyph entity-glyph--account"><AppIcon name="wallet" :size="23" /></span><div><small>TOS account</small><p class="mono">{{ data.address }}</p><AddressLabelEditor :address="data.address" :public-label="publicLabel" /></div><CopyButton :value="data.address" label="address" /></div>
           <div class="account-balance"><small>Balance</small><strong>{{ formatTos(data.info.balance) }} <em>TOS</em></strong><span>Synced {{ timeAgo(data.info.sync_utime) }}</span></div>
         </section>
         <section class="account-metrics">

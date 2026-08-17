@@ -1,0 +1,46 @@
+groups:
+  - name: toscan-projection
+    rules:
+      - alert: TOSCANProjectionSourceUnhealthy
+        expr: toscan_projection_source_healthy == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: TOSCAN projection source is unhealthy
+          description: The query projection has failed closed against its node/source dependency for more than two minutes.
+      - alert: TOSCANProjectionLagHigh
+        expr: toscan_projection_lag > 2
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: TOSCAN projection is behind the network
+          description: The durable projection has remained more than two masterchain blocks behind for ten minutes.
+      - alert: TOSCANProjectionStale
+        expr: time() - toscan_projection_last_success_unixtime > 60
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: TOSCAN projection has stopped advancing
+          description: No successful projection cycle has completed for over one minute.
+      - alert: TOSCANProjectionErrors
+        expr: increase(toscan_projection_errors_total[10m]) > 2
+        labels: { severity: warning }
+        annotations:
+          summary: TOSCAN projection errors are increasing
+          description: More than two projection cycles failed during the last ten minutes.
+  - name: toscan-serving
+    rules:
+      - alert: TOSCANQueryP95LatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(toscan_query_duration_seconds_bucket[5m]))) > 0.75
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: TOSCAN query p95 latency is high
+          description: Public query p95 has exceeded 750 ms for ten minutes.
+      - alert: TOSCANMetricsMissing
+        expr: absent(toscan_projection_head)
+        for: 3m
+        labels: { severity: critical }
+        annotations:
+          summary: TOSCAN metrics target is missing
+          description: Prometheus has not observed the TOSCAN query process for three minutes.

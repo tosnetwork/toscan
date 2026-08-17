@@ -12,9 +12,17 @@ ENV VITE_TOS_NETWORK=${VITE_TOS_NETWORK} \
     VITE_ENABLE_PREVIEW=false
 RUN pnpm build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.28-alpine
+RUN sed -i '/^nginx/s/=.*//' /etc/apk/world \
+  && apk del nginx-module-acme nginx-module-geoip nginx-module-image-filter \
+    nginx-module-njs nginx-module-xslt \
+  && apk upgrade --no-cache \
+  && apk add --no-cache --upgrade nginx \
+  && mkdir -p /run/nginx
 ENV TOS_RPC_UPSTREAM=http://host.docker.internal:8011 \
-    TOS_SERVICE_UPSTREAM=http://host.docker.internal:8080
+    TOS_SERVICE_UPSTREAM=http://host.docker.internal:8080 \
+    TOS_RPC_API_KEY="" \
+    NGINX_ENVSUBST_OUTPUT_DIR=/etc/nginx/http.d
 COPY deploy/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 8080

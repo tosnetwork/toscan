@@ -155,6 +155,29 @@ export interface ExplorerStakingResponse {
   cycles: ExplorerStakingCycle[];
 }
 
+export interface ValidatorMember {
+  public_key: string;
+  adnl_address: string;
+  weight: string;
+  cumulative_weight: string;
+}
+
+export interface ValidatorSetConfig {
+  utime_since: number;
+  utime_until: number;
+  total: number;
+  main: number;
+  total_weight: string;
+  validators: ValidatorMember[];
+}
+
+export interface ValidatorSetSnapshot {
+  observed_mc_seqno: number;
+  observed_at: number;
+  validator_set: ValidatorSetConfig | null;
+  signatures: Array<{ node_id_short: string; signature: string }>;
+}
+
 export interface JettonPosition {
   jetton_master: string;
   jetton_wallet: string;

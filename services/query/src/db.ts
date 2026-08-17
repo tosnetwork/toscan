@@ -1,8 +1,8 @@
 import pg from "pg";
-import type { ExplorerAsset, ExplorerContract, ExplorerStakingResponse, JettonPosition, MasterchainBundle, NftPosition } from "./types.js";
+import type { ExplorerAsset, ExplorerContract, ExplorerStakingResponse, JettonPosition, MasterchainBundle, NftPosition, ValidatorSetSnapshot } from "./types.js";
 
 const { Pool } = pg;
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS projection_schema_migrations (
@@ -166,6 +166,34 @@ export class ProjectionDb {
         await client.query("CREATE INDEX IF NOT EXISTS explorer_staking_cycles_recent ON explorer_staking_cycles(election_id DESC)");
         await client.query("INSERT INTO projection_schema_migrations(version) VALUES (5)");
       }
+      if (version < 6) {
+        await client.query(`CREATE TABLE IF NOT EXISTS explorer_pool_snapshots (
+          address text NOT NULL,
+          observed_at bigint NOT NULL,
+          status text,
+          last_seqno integer NOT NULL,
+          data jsonb NOT NULL,
+          PRIMARY KEY(address,observed_at)
+        )`);
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_pool_snapshots_recent ON explorer_pool_snapshots(address,observed_at DESC)");
+        await client.query(`CREATE TABLE IF NOT EXISTS explorer_validator_sets (
+          observed_mc_seqno integer PRIMARY KEY,
+          observed_at bigint NOT NULL,
+          data jsonb NOT NULL
+        )`);
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_validator_sets_recent ON explorer_validator_sets(observed_at DESC,observed_mc_seqno DESC)");
+        await client.query(`CREATE TABLE IF NOT EXISTS explorer_address_labels (
+          address text PRIMARY KEY,
+          label text NOT NULL,
+          category text NOT NULL,
+          source text NOT NULL,
+          source_url text,
+          verified boolean NOT NULL DEFAULT false,
+          updated_at bigint NOT NULL
+        )`);
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_address_labels_search ON explorer_address_labels(lower(label),category,address)");
+        await client.query("INSERT INTO projection_schema_migrations(version) VALUES (6)");
+      }
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -221,7 +249,7 @@ export class ProjectionDb {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      await client.query("TRUNCATE explorer_staking_cycles, explorer_staking_overview, explorer_asset_positions, explorer_asset_accounts, explorer_assets, explorer_messages, explorer_transactions, explorer_blocks, explorer_contracts");
+      await client.query("TRUNCATE explorer_pool_snapshots, explorer_validator_sets, explorer_staking_cycles, explorer_staking_overview, explorer_asset_positions, explorer_asset_accounts, explorer_assets, explorer_messages, explorer_transactions, explorer_blocks, explorer_contracts");
       await client.query("DELETE FROM projection_meta WHERE key IN ('master_seqno', 'master_root')");
       await client.query("COMMIT");
     } catch (error) {
@@ -402,6 +430,15 @@ export class ProjectionDb {
           [record.address, record.kind, record.creator, record.counterparty, record.status,
             record.deadline, record.last_seqno, record.updated_at, record.data, epoch],
         );
+        if (record.kind === "contract.pool.nominator") {
+          await client.query(
+            `INSERT INTO explorer_pool_snapshots(address,observed_at,status,last_seqno,data)
+             VALUES($1,$2,$3,$4,$5)
+             ON CONFLICT(address,observed_at) DO UPDATE SET
+               status=EXCLUDED.status,last_seqno=EXCLUDED.last_seqno,data=EXCLUDED.data`,
+            [record.address, record.updated_at, record.status, record.last_seqno, record.data],
+          );
+        }
       }
       await client.query("DELETE FROM explorer_contracts WHERE kind=$1 AND sync_epoch<>$2", [kind, epoch]);
       await client.query("COMMIT");
@@ -446,6 +483,15 @@ export class ProjectionDb {
     } finally {
       client.release();
     }
+  }
+
+  async recordValidatorSet(snapshot: ValidatorSetSnapshot): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO explorer_validator_sets(observed_mc_seqno,observed_at,data)
+       VALUES($1,$2,$3)
+       ON CONFLICT(observed_mc_seqno) DO UPDATE SET observed_at=EXCLUDED.observed_at,data=EXCLUDED.data`,
+      [snapshot.observed_mc_seqno, snapshot.observed_at, snapshot],
+    );
   }
 
   async pendingAssetAccounts(limit: number): Promise<string[]> {

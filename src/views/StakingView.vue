@@ -4,12 +4,15 @@ import AppIcon from "@/components/AppIcon.vue";
 import LoadState from "@/components/LoadState.vue";
 import PageHeading from "@/components/PageHeading.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
+import ExportButton from "@/components/ExportButton.vue";
+import TrendChart from "@/components/TrendChart.vue";
 import { getStakingData } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { compact, formatDate, formatInteger, formatTos } from "@/utils/format";
 
 const { data, loading, error, refresh } = useAsyncData(getStakingData, [], { refreshInterval: 15_000 });
 const latestCycle = computed(() => data.value?.cycles[0] ?? null);
+const cycleChart = computed(() => [...(data.value?.cycles ?? [])].reverse());
 
 function percent(value: number | null | undefined): string {
   return value === null || value === undefined || !Number.isFinite(value) ? "—" : `${(value * 100).toFixed(2)}%`;
@@ -32,7 +35,8 @@ function percent(value: number | null | undefined): string {
         </section>
 
         <section class="surface page-surface staking-cycle-card">
-          <header class="section-heading"><div><h2>Completed reward cycles</h2><p>Realized Elector bonuses divided by stake, annualized over each recorded holding period</p></div><RouterLink to="/validators">Validators <AppIcon name="chevron" :size="15" /></RouterLink></header>
+          <header class="section-heading"><div><h2>Completed reward cycles</h2><p>Realized Elector bonuses divided by stake, annualized over each recorded holding period</p></div><div class="heading-actions"><ExportButton filename="toscan-staking-cycles" :headers="['Election','Total stake','Rewards','Reward rate','APR','APY','Validators','Unfreeze at']" :rows="data.cycles.map((cycle) => [cycle.election_id,cycle.total_stake,cycle.rewards,cycle.reward_rate,cycle.annualized_apr,cycle.compounded_apy,cycle.validator_count,cycle.unfreeze_at])" /><RouterLink to="/validators">Validators <AppIcon name="chevron" :size="15" /></RouterLink></div></header>
+          <TrendChart :values="cycleChart.map((cycle) => cycle.reward_rate * 100)" :labels="cycleChart.map((cycle) => `Election ${cycle.election_id}`)" title="Realized reward-rate history" value-label="Percent per completed holding period" :format="(value) => `${value.toFixed(2)}%`" />
           <div class="data-table-wrap">
             <table class="data-table staking-table">
               <thead><tr><th>Election</th><th>Total stake</th><th>Rewards</th><th>Reward rate</th><th>APR</th><th>APY</th><th>Validators</th><th>Unfreezes</th></tr></thead>
@@ -59,7 +63,7 @@ function percent(value: number | null | undefined): string {
             <article v-for="pool in data.pool_records" :key="pool.address">
               <div class="staking-pool-main">
                 <StatusBadge :status="pool.status ?? 'unknown'" />
-                <RouterLink class="mono" :to="`/address/${pool.address}`">{{ compact(pool.address, 16, 12) }}</RouterLink>
+                <RouterLink class="mono" :to="{ name: 'staking-pool', params: { address: pool.address } }">{{ compact(pool.address, 16, 12) }}</RouterLink>
                 <small>Validator {{ compact(pool.data.validator_address, 12, 10) }}</small>
               </div>
               <dl>

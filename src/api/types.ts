@@ -372,6 +372,19 @@ export interface StakingData {
   pool_records: Array<ExplorerContract<NominatorPoolData>>;
 }
 
+export interface PoolSnapshot {
+  observed_at: number;
+  status: string | null;
+  last_seqno: number;
+  data: NominatorPoolData;
+}
+
+export interface NominatorPoolDetail {
+  pool: ExplorerContract<NominatorPoolData>;
+  history: PoolSnapshot[];
+  network_reward_cycles: StakingCycle[];
+}
+
 export interface BlockSignature {
   node_id_short: string;
   signature: string;
@@ -398,6 +411,52 @@ export interface ValidatorSetConfig {
 
 export interface ValidatorOverview extends BlockSignatures {
   validator_set: ValidatorSetConfig | null;
+}
+
+export interface ValidatorSetSnapshot {
+  observed_mc_seqno: number;
+  observed_at: number;
+  validator_set: ValidatorSetConfig | null;
+  signatures: BlockSignature[];
+}
+
+export interface ValidatorHistoryPoint {
+  observed_mc_seqno: number;
+  observed_at: number;
+  total_weight: string;
+  public_key: string;
+  adnl_address: string;
+  weight: string;
+  cumulative_weight: string;
+}
+
+export interface ValidatorDetail {
+  public_key: string;
+  current: ValidatorHistoryPoint;
+  selected_sets: number;
+  first_observed_at: number;
+  last_observed_at: number;
+  history: ValidatorHistoryPoint[];
+  network_reward_cycles: StakingCycle[];
+  reward_attribution_available: false;
+}
+
+export interface NetworkAnalytics {
+  window: "24h" | "7d" | "30d" | "90d";
+  bucket_seconds: number;
+  activity: Array<{ bucket: number; blocks: number; transactions: number; fees: string }>;
+  contracts: Array<{ kind: string; count: number }>;
+  assets: Array<{ kind: string; count: number }>;
+}
+
+export interface AddressLabel {
+  address: string;
+  label: string;
+  category: string;
+  source: string;
+  source_url: string | null;
+  verified: boolean;
+  updated_at: number;
 }
 
 export interface GovernanceConfigProof {
@@ -483,7 +542,8 @@ export type ExplorerSearchHit =
   | { kind: "message"; result: ExplorerMessageOccurrence }
   | { kind: "asset"; result: ExplorerAsset }
   | { kind: "block"; result: ExplorerBlock }
-  | { kind: "contract"; result: ExplorerContract };
+  | { kind: "contract"; result: ExplorerContract }
+  | { kind: "label"; result: AddressLabel };
 
 export interface Page<T> {
   items: T[];

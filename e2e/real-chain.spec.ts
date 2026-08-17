@@ -37,6 +37,8 @@ test("browser follows the real chain through PostgreSQL projection and node exec
   await expect(page.getByRole("heading", { name: "Validators" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Current validator set" })).toBeVisible();
   await expect(page.getByText("Evidence boundary.")).toBeVisible();
+  await page.locator('a[href^="/validator/"]').first().click();
+  await expect(page.getByText("Voting-weight history")).toBeVisible();
 
   await page.goto("/staking");
   await expect(page.getByRole("heading", { name: "Staking" })).toBeVisible();
@@ -45,5 +47,13 @@ test("browser follows the real chain through PostgreSQL projection and node exec
   await expect(page.getByText("No Nominator Pool contract has appeared")).toHaveCount(0);
   await expect(page.locator(".staking-pool-list article")).toHaveCount(1);
   await expect(page.getByText("Evidence boundary.")).toBeVisible();
+  await page.locator('a[href^="/staking/pool/"]').first().click();
+  await expect(page.getByRole("heading", { name: "Nominator positions" })).toBeVisible();
+
+  await page.goto("/analytics");
+  await expect(page.getByRole("heading", { name: "Network analytics" })).toBeVisible();
+  await expect(page.getByText("Transaction activity")).toBeVisible();
+  const viewport = page.viewportSize();
+  if (viewport) expect(await page.locator("body").evaluate((body) => body.scrollWidth <= window.innerWidth + 1)).toBe(true);
   expect(pageErrors).toEqual([]);
 });
