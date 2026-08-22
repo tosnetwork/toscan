@@ -554,6 +554,51 @@ export interface ExplorerAsset {
   data: Record<string, unknown>;
 }
 
+export interface DnsDomainData {
+  name: string;
+  label: string;
+  index: string;
+  collection: string;
+  owner: string | null;
+  max_bid_address: string | null;
+  max_bid_amount: string;
+  auction_end_time: number;
+  last_fill_up_time: number;
+  renewal_deadline: number | null;
+  safe_to_resolve: boolean;
+  content_boc_base64: string;
+  content_hash: string;
+}
+
+export interface DnsDomain {
+  address: string;
+  name: string;
+  status: "auction" | "auction-ended-unfinalized" | "leased" | "releasable";
+  owner: string | null;
+  renewal_deadline: number | null;
+  safe_to_resolve: boolean;
+  observed_mc_seqno: number;
+  observed_at: number;
+  root_hash: string;
+  file_hash: string;
+  data: DnsDomainData;
+}
+
+export interface DnsDomainHistory {
+  address: string;
+  account_seqno: number;
+  observed_mc_seqno: number;
+  observed_at: number;
+  root_hash: string;
+  file_hash: string;
+  data: DnsDomainData;
+}
+
+export interface DnsDomainDetail {
+  current: DnsDomain;
+  history: DnsDomainHistory[];
+}
+
 export interface ExplorerAssetDetail extends ExplorerAsset {
   holders: Array<{
     owner_address: string;
@@ -593,7 +638,7 @@ export interface ContractVerification {
 }
 
 export interface ExplorerSearchSuggestion {
-  kind: "label" | "contract" | "asset" | "transaction" | "message" | "block" | "verification";
+  kind: "domain" | "label" | "contract" | "asset" | "transaction" | "message" | "block" | "verification";
   title: string;
   subtitle: string;
   value: string;
@@ -601,6 +646,7 @@ export interface ExplorerSearchSuggestion {
 }
 
 export type ExplorerSearchHit =
+  | { kind: "domain"; result: DnsDomain }
   | { kind: "transaction"; result: ExplorerTransaction }
   | { kind: "message"; result: ExplorerMessageOccurrence }
   | { kind: "asset"; result: ExplorerAsset }

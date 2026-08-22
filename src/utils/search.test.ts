@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { resolveSearch } from "./search";
 
 describe("resolveSearch", () => {
+  it("routes canonical .tos names to their checkpoint-backed domain page", () => {
+    expect(resolveSearch("alice.tos")).toEqual({ name: "domain", params: { name: "alice.tos" } });
+  });
   it("routes a raw TOS address to the account view", () => {
     const address = `0:${"a".repeat(64)}`;
     expect(resolveSearch(address)).toEqual({ name: "address", params: { address } });

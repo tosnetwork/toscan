@@ -1,8 +1,11 @@
 import pg from "pg";
-import type { ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, JettonPosition, MasterchainBundle, NftPosition, ValidatorSetSnapshot } from "./types.js";
+import type { DnsDomainHistoryItem, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, JettonPosition, MasterchainBundle, NftPosition, ValidatorSetSnapshot } from "./types.js";
 
 const { Pool } = pg;
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
+const RAW_ADDRESS = /^-?\d+:[0-9a-f]{64}$/;
+const HEX_HASH = /^[0-9a-f]{64}$/;
+const DNS_LEASE_SECONDS = 31_622_400;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS projection_schema_migrations (
@@ -225,6 +228,35 @@ export class ProjectionDb {
         await client.query("CREATE INDEX IF NOT EXISTS explorer_verifications_address_prefix ON explorer_contract_verifications(address text_pattern_ops)");
         await client.query("INSERT INTO projection_schema_migrations(version) VALUES (7)");
       }
+      if (version < 8) {
+        await client.query(`CREATE TABLE IF NOT EXISTS explorer_dns_domain_history (
+          address text NOT NULL,
+          account_seqno integer NOT NULL,
+          observed_mc_seqno integer NOT NULL,
+          observed_at bigint NOT NULL,
+          root_hash text NOT NULL,
+          file_hash text NOT NULL,
+          data jsonb NOT NULL,
+          PRIMARY KEY(address,observed_mc_seqno)
+        )`);
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_dns_history_checkpoint ON explorer_dns_domain_history(observed_mc_seqno,address)");
+        await client.query(`CREATE TABLE IF NOT EXISTS explorer_dns_domains (
+          address text PRIMARY KEY,
+          name text NOT NULL UNIQUE,
+          status text NOT NULL,
+          owner text,
+          renewal_deadline bigint,
+          safe_to_resolve boolean NOT NULL,
+          observed_mc_seqno integer NOT NULL,
+          observed_at bigint NOT NULL,
+          root_hash text NOT NULL,
+          file_hash text NOT NULL,
+          data jsonb NOT NULL
+        )`);
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_dns_domains_owner ON explorer_dns_domains(owner,name)");
+        await client.query("CREATE INDEX IF NOT EXISTS explorer_dns_domains_status ON explorer_dns_domains(status,renewal_deadline,name)");
+        await client.query("INSERT INTO projection_schema_migrations(version) VALUES (8)");
+      }
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -280,8 +312,8 @@ export class ProjectionDb {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      await client.query("TRUNCATE explorer_governance_snapshots, explorer_asset_position_events, explorer_pool_snapshots, explorer_validator_sets, explorer_staking_cycles, explorer_staking_overview, explorer_asset_positions, explorer_asset_accounts, explorer_assets, explorer_messages, explorer_transactions, explorer_blocks, explorer_contracts RESTART IDENTITY");
-      await client.query("DELETE FROM projection_meta WHERE key IN ('master_seqno', 'master_root')");
+      await client.query("TRUNCATE explorer_dns_domains, explorer_dns_domain_history, explorer_governance_snapshots, explorer_asset_position_events, explorer_pool_snapshots, explorer_validator_sets, explorer_staking_cycles, explorer_staking_overview, explorer_asset_positions, explorer_asset_accounts, explorer_assets, explorer_messages, explorer_transactions, explorer_blocks, explorer_contracts RESTART IDENTITY");
+      await client.query("DELETE FROM projection_meta WHERE key IN ('master_seqno', 'master_root', 'dns_mc_seqno', 'dns_address')");
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -293,6 +325,92 @@ export class ProjectionDb {
 
   async applyBundle(bundle: MasterchainBundle): Promise<void> {
     await this.applyBundles([bundle]);
+  }
+
+  async dnsCursor(): Promise<{ mcSeqno: number; address: string }> {
+    const result = await this.pool.query<{ key: string; value: string }>(
+      "SELECT key,value FROM projection_meta WHERE key IN ('dns_mc_seqno','dns_address')",
+    );
+    const values = new Map(result.rows.map((row) => [row.key, row.value]));
+    return { mcSeqno: Number(values.get("dns_mc_seqno") ?? 0), address: values.get("dns_address") ?? "" };
+  }
+
+  async applyDnsHistory(items: DnsDomainHistoryItem[]): Promise<void> {
+    if (items.length === 0) return;
+    const ordered = [...items].sort((left, right) =>
+      left.observed_mc_seqno - right.observed_mc_seqno || left.address.localeCompare(right.address));
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      for (const item of ordered) {
+        if (!RAW_ADDRESS.test(item.address) || !HEX_HASH.test(item.root_hash) || !HEX_HASH.test(item.file_hash) ||
+            !Number.isSafeInteger(item.account_seqno) || !Number.isSafeInteger(item.observed_mc_seqno) ||
+            !Number.isSafeInteger(item.observed_at) || item.observed_mc_seqno <= 0 || item.observed_at <= 0 ||
+            item.data.name !== `${item.data.label}.tos` || !/^[a-z0-9][a-z0-9-]{2,124}[a-z0-9]$/.test(item.data.label) ||
+            item.data.collection !== "0:cec242160fa821bc402586947649f25d4a0c1b02808d1dce93c893e98061bb8a" ||
+            item.data.owner !== null && !RAW_ADDRESS.test(item.data.owner) ||
+            item.data.max_bid_address !== null && !RAW_ADDRESS.test(item.data.max_bid_address) ||
+            !/^\d+$/.test(item.data.index) || !/^\d+$/.test(item.data.max_bid_amount) ||
+            !Number.isSafeInteger(item.data.auction_end_time) || item.data.auction_end_time < 0 ||
+            !Number.isSafeInteger(item.data.last_fill_up_time) || item.data.last_fill_up_time <= 0 ||
+            !HEX_HASH.test(item.data.content_hash)) {
+          throw new Error("DNS history item violates the TIP-1 projection shape");
+        }
+        const canonical = await client.query<{ root_hash: string; file_hash: string }>(
+          "SELECT root_hash,file_hash FROM explorer_blocks WHERE workchain=-1 AND seqno=$1",
+          [item.observed_mc_seqno],
+        );
+        const block = canonical.rows[0];
+        if (!block || block.root_hash !== item.root_hash || block.file_hash !== item.file_hash) {
+          throw new Error(`DNS history checkpoint ${item.observed_mc_seqno} is not canonical`);
+        }
+        const status = item.data.auction_end_time !== 0
+          ? (item.observed_at > item.data.auction_end_time ? "auction-ended-unfinalized" : "auction")
+          : (item.data.renewal_deadline !== null && item.observed_at > item.data.renewal_deadline ? "releasable" : "leased");
+        const expectedDeadline = item.data.auction_end_time === 0
+          ? item.data.last_fill_up_time + DNS_LEASE_SECONDS : null;
+        if (item.data.renewal_deadline !== expectedDeadline || item.data.safe_to_resolve !== (status === "leased")) {
+          throw new Error("DNS history lifecycle fields disagree with inherited contract rules");
+        }
+        await client.query(
+          `INSERT INTO explorer_dns_domain_history
+            (address,account_seqno,observed_mc_seqno,observed_at,root_hash,file_hash,data)
+           VALUES($1,$2,$3,$4,$5,$6,$7)
+           ON CONFLICT(address,observed_mc_seqno) DO UPDATE SET
+             account_seqno=EXCLUDED.account_seqno,observed_at=EXCLUDED.observed_at,
+             root_hash=EXCLUDED.root_hash,file_hash=EXCLUDED.file_hash,data=EXCLUDED.data`,
+          [item.address, item.account_seqno, item.observed_mc_seqno, item.observed_at,
+            item.root_hash, item.file_hash, item.data],
+        );
+        await client.query(
+          `INSERT INTO explorer_dns_domains
+            (address,name,status,owner,renewal_deadline,safe_to_resolve,observed_mc_seqno,
+             observed_at,root_hash,file_hash,data)
+           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+           ON CONFLICT(address) DO UPDATE SET name=EXCLUDED.name,status=EXCLUDED.status,
+             owner=EXCLUDED.owner,renewal_deadline=EXCLUDED.renewal_deadline,
+             safe_to_resolve=EXCLUDED.safe_to_resolve,observed_mc_seqno=EXCLUDED.observed_mc_seqno,
+             observed_at=EXCLUDED.observed_at,root_hash=EXCLUDED.root_hash,
+             file_hash=EXCLUDED.file_hash,data=EXCLUDED.data
+           WHERE explorer_dns_domains.observed_mc_seqno<=EXCLUDED.observed_mc_seqno`,
+          [item.address, item.data.name, status, item.data.owner, item.data.renewal_deadline,
+            item.data.safe_to_resolve, item.observed_mc_seqno, item.observed_at,
+            item.root_hash, item.file_hash, item.data],
+        );
+      }
+      const last = ordered.at(-1)!;
+      await client.query(
+        `INSERT INTO projection_meta(key,value) VALUES('dns_mc_seqno',$1),('dns_address',$2)
+         ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value`,
+        [String(last.observed_mc_seqno), last.address],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async applyBundles(bundles: MasterchainBundle[]): Promise<void> {

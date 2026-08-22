@@ -41,6 +41,7 @@ const navigation: NavigationGroup[] = [
     items: [
       { to: "/assets", label: "Assets", description: "Jettons, NFTs and verified positions" },
       { to: "/assets/activity", label: "Asset activity", description: "Ownership-position observations" },
+      { to: "/domains", label: ".tos domains", description: "Auctions, leases and record history" },
     ],
   },
   {

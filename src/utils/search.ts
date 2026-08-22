@@ -1,4 +1,5 @@
 export type SearchTarget =
+  | { name: "domain"; params: { name: string } }
   | { name: "address"; params: { address: string } }
   | { name: "block"; params: { workchain: string; shard: string; seqno: string } }
   | { name: "search"; query: { q: string } };
@@ -9,6 +10,9 @@ const BLOCK_ID = /^(-?\d+):(-?\d+):(\d+)$/;
 
 export function resolveSearch(input: string): SearchTarget {
   const query = input.trim();
+  if (/^[a-z0-9][a-z0-9-]{2,124}[a-z0-9]\.tos$/.test(query)) {
+    return { name: "domain", params: { name: query } };
+  }
   const block = query.match(BLOCK_ID);
   if (block?.[1] && block[2] && block[3]) {
     return { name: "block", params: { workchain: block[1], shard: block[2], seqno: block[3] } };

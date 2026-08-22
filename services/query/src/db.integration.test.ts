@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
 import { buildServer } from "./server.js";
-import type { MasterchainBundle, ProjectedBlock } from "./types.js";
+import type { DnsDomainHistoryItem, MasterchainBundle, ProjectedBlock } from "./types.js";
 
 const databaseUrl = process.env.QUERY_INTEGRATION_DATABASE_URL;
 const suite = describe.runIf(Boolean(databaseUrl));
@@ -47,7 +47,7 @@ suite("PostgreSQL projection", () => {
     db = new ProjectionDb(databaseUrl!);
     await db.migrate();
     await db.migrate();
-    expect(await db.schemaVersion()).toBe(7);
+    expect(await db.schemaVersion()).toBe(8);
     await db.resetChain();
     await db.pool.query("TRUNCATE explorer_address_labels");
   });
@@ -402,6 +402,43 @@ suite("PostgreSQL projection", () => {
     );
     expect(rows.rows.map((row) => row.root_hash)).toEqual(["root-new-master", "root-new-shard"]);
     expect((await db.pool.query("SELECT 1 FROM explorer_transactions WHERE hash IN ('tx-old-master','tx-old-shard')")).rowCount).toBe(0);
+  });
+
+  it("binds DNS lifecycle history to the canonical full block identity", async () => {
+    const observedAt = Math.floor(Date.now() / 1_000);
+    const lastFillUpTime = observedAt - 100;
+    const master = block(450, "dns-master");
+    master.root_hash = "ab".repeat(32);
+    master.file_hash = "cd".repeat(32);
+    await db.applyBundle(bundle(450, [master]));
+    const item: DnsDomainHistoryItem = {
+      address: `0:${"44".repeat(32)}`,
+      account_seqno: 9,
+      observed_mc_seqno: 450,
+      observed_at: observedAt,
+      root_hash: master.root_hash,
+      file_hash: master.file_hash,
+      data: {
+        name: "alice.tos", label: "alice", index: "1",
+        collection: `0:cec242160fa821bc402586947649f25d4a0c1b02808d1dce93c893e98061bb8a`,
+        owner: `0:${"55".repeat(32)}`, max_bid_address: null, max_bid_amount: "0",
+        auction_end_time: 0, last_fill_up_time: lastFillUpTime,
+        renewal_deadline: lastFillUpTime + 31_622_400, safe_to_resolve: true,
+        content_boc_base64: "te6ccgEBAQEAAgAAAA==", content_hash: "66".repeat(32),
+      },
+    };
+    await db.applyDnsHistory([item]);
+    expect(await db.dnsCursor()).toEqual({ mcSeqno: 450, address: item.address });
+    const app = buildServer(db, new Metrics());
+    const response = await app.inject("/explorer/dns/domains/alice.tos");
+    expect(response.statusCode).toBe(200);
+    expect(response.json().result.current).toMatchObject({
+      name: "alice.tos", status: "leased", safe_to_resolve: true,
+      observed_mc_seqno: 450, root_hash: master.root_hash,
+    });
+    await app.close();
+    await expect(db.applyDnsHistory([{ ...item, address: `0:${"45".repeat(32)}`, root_hash: "ef".repeat(32) }]))
+      .rejects.toThrow("not canonical");
   });
 
   it("rolls back a malformed projection without advancing its durable checkpoint", async () => {

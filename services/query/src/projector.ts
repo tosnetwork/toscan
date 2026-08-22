@@ -2,7 +2,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
 import { TosRpc } from "./rpc.js";
-import type { ContractListResponse, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, TokenData, ValidatorSetConfig } from "./types.js";
+import type { ContractListResponse, DnsDomainHistoryResponse, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, TokenData, ValidatorSetConfig } from "./types.js";
 
 export const CONTRACT_KINDS = [
   "agent_account",
@@ -78,6 +78,8 @@ export class Projector {
       this.metrics.indexed = checkpoint.seqno;
     }
 
+    await this.syncDnsHistory(this.metrics.indexed);
+
     if (Date.now() - this.lastContractSync >= this.options.contractSyncMs) {
       await this.syncContracts();
       await this.syncStaking();
@@ -122,6 +124,36 @@ export class Projector {
         if (records.length >= page.total || page.result.length === 0) break;
       }
       await this.db.replaceContracts(kind, records);
+    }
+  }
+
+  private async syncDnsHistory(indexedMcSeqno: number): Promise<void> {
+    let cursor = await this.db.dnsCursor();
+    for (;;) {
+      const url = new URL("/explorer/dns/history", this.options.sourceUrl);
+      url.searchParams.set("after_mc_seqno", String(cursor.mcSeqno));
+      if (cursor.address) url.searchParams.set("after_address", cursor.address);
+      url.searchParams.set("limit", "200");
+      const response = await fetch(url, { headers: { accept: "application/json" } });
+      // During a rolling deployment the explorer node may briefly predate the
+      // DNS history endpoint. An empty projection can safely retry next cycle;
+      // once DNS data exists, fail closed rather than silently serving it stale.
+      if ((response.status === 404 || response.status === 501) && cursor.mcSeqno === 0 && cursor.address === "") return;
+      if (!response.ok) throw new Error(`DNS history sync failed (${response.status})`);
+      const page = await response.json() as DnsDomainHistoryResponse;
+      if (!page.ok || !Array.isArray(page.result)) throw new Error("DNS history source returned an invalid page");
+      const eligible = page.result.filter((item) => item.observed_mc_seqno <= indexedMcSeqno);
+      if (eligible.length > 0) {
+        for (const item of eligible) {
+          if (item.observed_mc_seqno < cursor.mcSeqno ||
+              item.observed_mc_seqno === cursor.mcSeqno && item.address <= cursor.address) {
+            throw new Error("DNS history source did not advance its cursor");
+          }
+          cursor = { mcSeqno: item.observed_mc_seqno, address: item.address };
+        }
+        await this.db.applyDnsHistory(eligible);
+      }
+      if (page.result.length < 200 || eligible.length !== page.result.length) return;
     }
   }
 

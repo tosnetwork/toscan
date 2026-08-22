@@ -13,6 +13,10 @@ const { data, loading, error, refresh } = useAsyncData(() => searchExplorer(quer
 
 watch(data, (hit) => {
   if (!hit) return;
+  if (hit.kind === "domain") {
+    void router.replace({ name: "domain", params: { name: hit.result.name } });
+    return;
+  }
   if (hit.kind === "transaction") {
     void router.replace({
       name: "transaction",

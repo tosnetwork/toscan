@@ -47,6 +47,10 @@ describe("query readiness", () => {
     expect((await app.inject(`/explorer/search/suggest?q=${"a".repeat(257)}`)).statusCode).toBe(400);
     expect((await app.inject("/explorer/assets/activity?kind=coin")).statusCode).toBe(400);
     expect((await app.inject("/explorer/assets/not-an-address/holders")).statusCode).toBe(400);
+    expect((await app.inject("/explorer/dns/domains?status=owned")).statusCode).toBe(400);
+    expect((await app.inject("/explorer/dns/domains?owner=not-an-address")).statusCode).toBe(400);
+    expect((await app.inject("/explorer/dns/domains?safe=yes")).statusCode).toBe(400);
+    expect((await app.inject("/explorer/dns/domains/Alice.tos")).statusCode).toBe(400);
     await app.close();
   });
 

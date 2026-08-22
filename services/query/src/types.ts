@@ -215,3 +215,34 @@ export interface ExplorerAsset {
   updated_at: number;
   data: TokenData | Record<string, never>;
 }
+
+export interface DnsDomainData {
+  name: string;
+  label: string;
+  index: string;
+  collection: string;
+  owner: string | null;
+  max_bid_address: string | null;
+  max_bid_amount: string;
+  auction_end_time: number;
+  last_fill_up_time: number;
+  renewal_deadline: number | null;
+  safe_to_resolve: boolean;
+  content_boc_base64: string;
+  content_hash: string;
+}
+
+export interface DnsDomainHistoryItem {
+  address: string;
+  account_seqno: number;
+  observed_mc_seqno: number;
+  observed_at: number;
+  root_hash: string;
+  file_hash: string;
+  data: DnsDomainData;
+}
+
+export interface DnsDomainHistoryResponse {
+  ok: boolean;
+  result: DnsDomainHistoryItem[];
+}

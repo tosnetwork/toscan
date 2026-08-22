@@ -164,6 +164,35 @@ function assetPositionEvent(row: QueryResultRow): Record<string, unknown> {
   };
 }
 
+function dnsDomain(row: QueryResultRow): Record<string, unknown> {
+  return {
+    address: row.address,
+    name: row.name,
+    status: row.status_current ?? row.status,
+    owner: row.owner,
+    renewal_deadline: row.renewal_deadline === null ? null : Number(row.renewal_deadline),
+    safe_to_resolve: row.safe_current ?? row.safe_to_resolve,
+    observed_mc_seqno: row.observed_mc_seqno,
+    observed_at: Number(row.observed_at),
+    root_hash: row.root_hash,
+    file_hash: row.file_hash,
+    data: row.data,
+  };
+}
+
+const DNS_CURRENT_SELECT = `SELECT d.*,
+  CASE
+    WHEN COALESCE((d.data->>'auction_end_time')::bigint,0)<>0
+      THEN CASE WHEN extract(epoch FROM now())::bigint>(d.data->>'auction_end_time')::bigint
+        THEN 'auction-ended-unfinalized' ELSE 'auction' END
+    WHEN d.renewal_deadline IS NOT NULL AND extract(epoch FROM now())::bigint>d.renewal_deadline
+      THEN 'releasable'
+    ELSE 'leased'
+  END status_current,
+  (COALESCE((d.data->>'auction_end_time')::bigint,0)=0 AND
+   d.renewal_deadline IS NOT NULL AND extract(epoch FROM now())::bigint<=d.renewal_deadline) safe_current
+  FROM explorer_dns_domains d`;
+
 const BLOCK_SELECT = `SELECT b.*,
   (SELECT count(*) FROM explorer_transactions t
    WHERE t.workchain=b.workchain AND t.shard=b.shard AND t.seqno=b.seqno) AS tx_count
@@ -332,6 +361,63 @@ export function buildServer(
     );
     if (result.rows.length === 0) return reply.code(404).send({ ok: false, error: { message: "message hash is not indexed" } });
     return { ok: true, result: { hash, occurrences: result.rows.map(message) } };
+  });
+
+  app.get("/explorer/dns/domains", async (request) => {
+    const query = request.query as Record<string, unknown>;
+    const { offset, limit } = page(query);
+    const filters: string[] = [];
+    const values: unknown[] = [];
+    if (query.status !== undefined) {
+      const status = String(query.status);
+      if (!["auction", "auction-ended-unfinalized", "leased", "releasable"].includes(status)) {
+        throw Object.assign(new Error("invalid DNS lifecycle status"), { statusCode: 400 });
+      }
+      values.push(status);
+      filters.push(`status_current=$${values.length}`);
+    }
+    if (query.owner !== undefined) {
+      const owner = String(query.owner).toLowerCase();
+      if (!ADDRESS.test(owner)) throw Object.assign(new Error("invalid DNS owner address"), { statusCode: 400 });
+      values.push(owner);
+      filters.push(`owner=$${values.length}`);
+    }
+    if (query.safe !== undefined) {
+      if (query.safe !== "true" && query.safe !== "false") {
+        throw Object.assign(new Error("DNS safe filter must be true or false"), { statusCode: 400 });
+      }
+      values.push(query.safe === "true");
+      filters.push(`safe_current=$${values.length}`);
+    }
+    const where = filters.length ? ` WHERE ${filters.join(" AND ")}` : "";
+    values.push(offset, limit);
+    const [rows, total] = await Promise.all([
+      db.pool.query(`SELECT * FROM (${DNS_CURRENT_SELECT}) dns${where} ORDER BY name OFFSET $${values.length - 1} LIMIT $${values.length}`, values),
+      db.pool.query(`SELECT count(*)::int total FROM (${DNS_CURRENT_SELECT}) dns${where}`, values.slice(0, -2)),
+    ]);
+    return { ok: true, total: total.rows[0].total, offset, limit, result: rows.rows.map(dnsDomain) };
+  });
+
+  app.get<{ Params: { name: string } }>("/explorer/dns/domains/:name", async (request, reply) => {
+    const name = request.params.name;
+    if (name.length > 130 || name !== name.toLowerCase() || !name.endsWith(".tos")) {
+      throw Object.assign(new Error("invalid canonical .tos name"), { statusCode: 400 });
+    }
+    const [current, history] = await Promise.all([
+      db.pool.query(`SELECT * FROM (${DNS_CURRENT_SELECT}) dns WHERE name=$1`, [name]),
+      db.pool.query(
+        `SELECT h.address,h.account_seqno,h.observed_mc_seqno,h.observed_at::text,
+                h.root_hash,h.file_hash,h.data
+         FROM explorer_dns_domain_history h WHERE h.data->>'name'=$1
+         ORDER BY h.observed_mc_seqno DESC,h.address LIMIT 512`,
+        [name],
+      ),
+    ]);
+    if (!current.rows[0]) return reply.code(404).send({ ok: false, error: { message: ".tos domain is not indexed" } });
+    return { ok: true, result: {
+      current: dnsDomain(current.rows[0]),
+      history: history.rows.map((row) => ({ ...row, observed_at: Number(row.observed_at) })),
+    } };
   });
 
   app.get("/explorer/economy", async () => {
@@ -859,7 +945,8 @@ export function buildServer(
     if (q.length > 256) throw Object.assign(new Error("search query is too long"), { statusCode: 400 });
     const limit = Math.min(12, Math.max(1, Number(query.limit ?? 8) || 8));
     const prefix = `${q.toLowerCase().replace(/[\\%_]/g, "\\$&")}%`;
-    const [labels, contracts, assets, transactions, messages, blocks, verifications] = await Promise.all([
+    const [domains, labels, contracts, assets, transactions, messages, blocks, verifications] = await Promise.all([
+      db.pool.query("SELECT name,address,status FROM explorer_dns_domains WHERE name LIKE $1 ORDER BY name LIMIT 4", [prefix]),
       db.pool.query(
         `SELECT address,label,category FROM explorer_address_labels
          WHERE lower(label) LIKE $1 OR address LIKE $1
@@ -892,6 +979,7 @@ export function buildServer(
       return `/${name}/${address}`;
     };
     const suggestions = [
+      ...domains.rows.map((row) => ({ kind: "domain", title: row.name, subtitle: row.status, value: row.address, route: `/domain/${row.name}` })),
       ...labels.rows.map((row) => ({ kind: "label", title: row.label, subtitle: row.category, value: row.address, route: `/address/${row.address}` })),
       ...contracts.rows.map((row) => ({ kind: "contract", title: row.data?.name ?? row.kind, subtitle: row.status ?? row.kind, value: row.address, route: routeForContract(row.kind, row.address) })),
       ...assets.rows.map((row) => ({ kind: "asset", title: row.data?.jetton_name ?? row.data?.jetton_symbol ?? row.kind, subtitle: row.kind, value: row.address, route: `/token/${row.address}` })),
@@ -912,6 +1000,8 @@ export function buildServer(
     const q = String((request.query as Record<string, unknown>).q ?? "").trim();
     if (!q) throw Object.assign(new Error("search query is required"), { statusCode: 400 });
     if (q.length > 256) throw Object.assign(new Error("search query is too long"), { statusCode: 400 });
+    const foundDomain = await db.pool.query(`SELECT * FROM (${DNS_CURRENT_SELECT}) dns WHERE name=$1`, [q.toLowerCase()]);
+    if (foundDomain.rows[0]) return { ok: true, result: { kind: "domain", result: dnsDomain(foundDomain.rows[0]) } };
     const tx = await db.pool.query(`${TX_SELECT} WHERE t.hash=$1`, [q]);
     if (tx.rows[0]) return { ok: true, result: { kind: "transaction", result: transaction(tx.rows[0]) } };
     const foundMessage = await db.pool.query(

@@ -15,6 +15,8 @@ import type {
   BlockTransactions,
   ContractVerification,
   Dispute,
+  DnsDomain,
+  DnsDomainDetail,
   ExplorerBlock,
   ExplorerAsset,
   ExplorerAssetDetail,
@@ -954,6 +956,29 @@ export async function getAssetsPage(
     const filtered = positions.filter((asset) => !kind || asset.kind === kind);
     return { items: filtered.slice(offset, offset + limit), total: filtered.length, offset, limit, complete: true };
   });
+}
+
+export async function getDnsDomainsPage(
+  offset = 0,
+  limit = 50,
+  status?: string,
+  safe?: boolean,
+): Promise<Page<DnsDomain>> {
+  return withPreview(
+    async () => page(await serviceApi.get<ListResponse<DnsDomain>>("/explorer/dns/domains", {
+      offset, limit, status, safe: safe === undefined ? undefined : String(safe),
+    })),
+    () => ({ items: [], total: 0, offset, limit, complete: true }),
+  );
+}
+
+export async function getDnsDomain(name: string): Promise<DnsDomainDetail> {
+  return withPreview(
+    () => serviceApi.get<{ ok: boolean; result: DnsDomainDetail }>(
+      `/explorer/dns/domains/${encodeURIComponent(name)}`,
+    ).then((response) => response.result),
+    () => { throw new Error("DNS domain history is unavailable in preview mode"); },
+  );
 }
 
 export async function getAssetHoldersPage(address: string, offset = 0, limit = 50): Promise<Page<ExplorerAssetHolder>> {

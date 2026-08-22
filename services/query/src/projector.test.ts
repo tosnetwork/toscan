@@ -1,9 +1,58 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
 import { Projector } from "./projector.js";
 import type { TosRpc } from "./rpc.js";
-import type { GovernanceSnapshot, ValidatorSetConfig, ValidatorSetSnapshot } from "./types.js";
+import type { DnsDomainHistoryItem, GovernanceSnapshot, ValidatorSetConfig, ValidatorSetSnapshot } from "./types.js";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("DNS history projection", () => {
+  it("persists only events whose full checkpoint has already been projected", async () => {
+    const applied: DnsDomainHistoryItem[][] = [];
+    const db = {
+      dnsCursor: async () => ({ mcSeqno: 0, address: "" }),
+      applyDnsHistory: async (items: DnsDomainHistoryItem[]) => { applied.push(items); },
+    } as unknown as ProjectionDb;
+    const eligible = { address: `0:${"11".repeat(32)}`, observed_mc_seqno: 7 } as DnsDomainHistoryItem;
+    const future = { address: `0:${"22".repeat(32)}`, observed_mc_seqno: 8 } as DnsDomainHistoryItem;
+    const requested: string[] = [];
+    vi.stubGlobal("fetch", async (input: string | URL | Request) => {
+      requested.push(String(input));
+      return new Response(JSON.stringify({ ok: true, result: [eligible, future] }), {
+        status: 200, headers: { "content-type": "application/json" },
+      });
+    });
+    const projector = new Projector(db, {} as TosRpc, new Metrics(), {
+      sourceUrl: "http://source", batchSize: 1, pollMs: 1, contractSyncMs: 1,
+    });
+    await (projector as unknown as { syncDnsHistory(seqno: number): Promise<void> }).syncDnsHistory(7);
+    expect(applied).toEqual([[eligible]]);
+    expect(requested[0]).toContain("after_mc_seqno=0");
+  });
+
+  it("tolerates an old source node only before any DNS history has been stored", async () => {
+    const projector = new Projector({
+      dnsCursor: async () => ({ mcSeqno: 0, address: "" }),
+    } as unknown as ProjectionDb, {} as TosRpc, new Metrics(), {
+      sourceUrl: "http://source", batchSize: 1, pollMs: 1, contractSyncMs: 1,
+    });
+    vi.stubGlobal("fetch", async () => new Response(null, { status: 404 }));
+    await expect((projector as unknown as { syncDnsHistory(seqno: number): Promise<void> }).syncDnsHistory(7))
+      .resolves.toBeUndefined();
+  });
+
+  it("fails closed when a source drops DNS history after projection began", async () => {
+    const projector = new Projector({
+      dnsCursor: async () => ({ mcSeqno: 6, address: `0:${"11".repeat(32)}` }),
+    } as unknown as ProjectionDb, {} as TosRpc, new Metrics(), {
+      sourceUrl: "http://source", batchSize: 1, pollMs: 1, contractSyncMs: 1,
+    });
+    vi.stubGlobal("fetch", async () => new Response(null, { status: 404 }));
+    await expect((projector as unknown as { syncDnsHistory(seqno: number): Promise<void> }).syncDnsHistory(7))
+      .rejects.toThrow("DNS history sync failed (404)");
+  });
+});
 
 function validatorSet(key: string, start: number): ValidatorSetConfig {
   return {
