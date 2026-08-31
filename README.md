@@ -45,7 +45,7 @@ The indexer:
 - exposes only public, read-only `/explorer/*` routes to TOSCAN;
 - reports the node head, indexed head and lag for operational visibility.
 
-The source index's canonical replay and the query service's ordered PostgreSQL migrations are independently versioned. PostgreSQL migration version 9 removes retired AIPoW contract classifications after version 8 added canonical DNS history; startup refuses a database created by a newer unsupported service.
+The source index's canonical replay and the query service's ordered PostgreSQL migrations are independently versioned. PostgreSQL migration version 8 adds canonical DNS history to the existing projection data; startup refuses a database created by a newer unsupported service.
 
 ## Local development
 

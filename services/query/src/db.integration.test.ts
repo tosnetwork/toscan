@@ -47,33 +47,12 @@ suite("PostgreSQL projection", () => {
     db = new ProjectionDb(databaseUrl!);
     await db.migrate();
     await db.migrate();
-    expect(await db.schemaVersion()).toBe(9);
+    expect(await db.schemaVersion()).toBe(8);
     await db.resetChain();
     await db.pool.query("TRUNCATE explorer_address_labels");
   });
 
   afterAll(async () => db.close());
-
-  it("removes retired AIPoW contract projections during the version 9 migration", async () => {
-    const addresses = [`0:${"ee".repeat(32)}`, `0:${"ef".repeat(32)}`];
-    await db.pool.query(
-      `INSERT INTO explorer_contracts
-        (address,kind,last_seqno,updated_at,data,sync_epoch)
-       VALUES ($1,'aipow_commitment',0,0,'{}'::jsonb,0),
-              ($2,'aipow_distributor',0,0,'{}'::jsonb,0)`,
-      addresses,
-    );
-    await db.pool.query("DELETE FROM projection_schema_migrations WHERE version=9");
-
-    await db.migrate();
-
-    const retired = await db.pool.query<{ count: string }>(
-      "SELECT count(*)::text count FROM explorer_contracts WHERE address = ANY($1::text[])",
-      [addresses],
-    );
-    expect(retired.rows[0]?.count).toBe("0");
-    expect(await db.schemaVersion()).toBe(9);
-  });
 
   it("atomically applies batches and removes transactions retired by replacement", async () => {
     await db.applyBundles([
