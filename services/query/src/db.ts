@@ -2,7 +2,7 @@ import pg from "pg";
 import type { DnsDomainHistoryItem, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, JettonPosition, MasterchainBundle, NftPosition, ValidatorSetSnapshot } from "./types.js";
 
 const { Pool } = pg;
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 const RAW_ADDRESS = /^-?\d+:[0-9a-f]{64}$/;
 const HEX_HASH = /^[0-9a-f]{64}$/;
 const DNS_LEASE_SECONDS = 31_622_400;
@@ -256,6 +256,12 @@ export class ProjectionDb {
         await client.query("CREATE INDEX IF NOT EXISTS explorer_dns_domains_owner ON explorer_dns_domains(owner,name)");
         await client.query("CREATE INDEX IF NOT EXISTS explorer_dns_domains_status ON explorer_dns_domains(status,renewal_deadline,name)");
         await client.query("INSERT INTO projection_schema_migrations(version) VALUES (8)");
+      }
+      if (version < 9) {
+        await client.query(
+          "DELETE FROM explorer_contracts WHERE kind IN ('aipow_commitment','aipow_distributor')",
+        );
+        await client.query("INSERT INTO projection_schema_migrations(version) VALUES (9)");
       }
       await client.query("COMMIT");
     } catch (error) {

@@ -10,8 +10,6 @@ export const CONTRACT_KINDS = [
   "dispute",
   "service_actor",
   "capability_registry",
-  "aipow_commitment",
-  "aipow_distributor",
   "contract.pool.nominator",
 ] as const;
 

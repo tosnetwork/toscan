@@ -38,14 +38,14 @@ The indexer:
 
 - advances on the masterchain timeline and indexes the exact shard heads referenced by each masterchain block, including shards created by split/merge at a non-zero height;
 - stores every block and transaction identity, full unsigned 64-bit logical times, execution phases, fees and inbound/outbound message edges;
-- classifies Agent Account, Task Escrow, Dispute, Service Actor, Capability Registry, AIPoW and Nominator Pool contracts by code hash;
+- classifies Agent Account, Task Escrow, Dispute, Service Actor, Capability Registry and Nominator Pool contracts by code hash;
 - discovers Jetton/NFT contracts from node-verified account positions, maintains owner-to-asset edges and retains appearance/removal observations without mislabelling them as decoded transfers;
 - snapshots proof-backed configuration cells so governance changes can be compared without inventing authors or votes;
 - detects a canonical masterchain root change and rebuilds chain-derived state from genesis;
 - exposes only public, read-only `/explorer/*` routes to TOSCAN;
 - reports the node head, indexed head and lag for operational visibility.
 
-The source index's canonical replay and the query service's ordered PostgreSQL migrations are independently versioned. PostgreSQL migration version 7 adds asset-position events and governance snapshots to messages/execution, asset discovery, matched-build attestations, staking reward/pool history, validator-set snapshots and curated address labels; startup refuses a database created by a newer unsupported service.
+The source index's canonical replay and the query service's ordered PostgreSQL migrations are independently versioned. PostgreSQL migration version 9 removes retired AIPoW contract classifications after version 8 added canonical DNS history; startup refuses a database created by a newer unsupported service.
 
 ## Local development
 

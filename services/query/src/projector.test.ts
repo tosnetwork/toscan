@@ -1,11 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
-import { Projector } from "./projector.js";
+import { CONTRACT_KINDS, Projector } from "./projector.js";
 import type { TosRpc } from "./rpc.js";
 import type { DnsDomainHistoryItem, GovernanceSnapshot, ValidatorSetConfig, ValidatorSetSnapshot } from "./types.js";
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("contract projection", () => {
+  it("requests exactly the contract kinds supported by the current node", () => {
+    expect(CONTRACT_KINDS).toEqual([
+      "agent_account",
+      "task_escrow",
+      "dispute",
+      "service_actor",
+      "capability_registry",
+      "contract.pool.nominator",
+    ]);
+  });
+});
 
 describe("DNS history projection", () => {
   it("persists only events whose full checkpoint has already been projected", async () => {

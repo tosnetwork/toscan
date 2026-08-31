@@ -700,8 +700,6 @@ export function buildServer(
         dispute: "Dispute",
         service_actor: "Service Actor",
         capability_registry: "Capability Registry",
-        aipow_commitment: "AIPoW Commitment",
-        aipow_distributor: "AIPoW Distributor",
         "contract.pool.nominator": "Nominator Pool",
       };
       return { ok: true, result: {
