@@ -11,7 +11,7 @@ import WatchButton from "@/components/WatchButton.vue";
 import { getValidatorDetail } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { compact, formatDate, formatInteger, formatTos, ratioPercent } from "@/utils/format";
-import { validatorRouteKey } from "@/utils/validators";
+import { validatorRouteKey, signatureAlgorithm } from "@/utils/validators";
 
 const route = useRoute();
 const publicKey = computed(() => String(route.params.publicKey));
@@ -19,7 +19,7 @@ const { data, loading, error, refresh } = useAsyncData(() => getValidatorDetail(
 const chronological = computed(() => [...(data.value?.history ?? [])].reverse());
 const rewards = computed(() => [...(data.value?.network_reward_cycles ?? [])].reverse());
 const fingerprint = computed(() => data.value ? JSON.stringify([data.value.currently_selected, data.value.selected_for_next_set, data.value.current.weight, data.value.latest_observed_mc_seqno]) : null);
-const canonicalPublicKey = computed(() => data.value?.public_key ?? publicKey.value);
+const canonicalPublicKey = computed(() => data.value?.identity ?? data.value?.validator_id ?? data.value?.public_key ?? publicKey.value);
 const validatorRoute = computed(() => `/validator/${validatorRouteKey(canonicalPublicKey.value)}`);
 </script>
 
@@ -30,11 +30,12 @@ const validatorRoute = computed(() => `/validator/${validatorRouteKey(canonicalP
     </PageHeading>
     <LoadState :loading="loading" :error="error" @retry="refresh">
       <template v-if="data">
-        <section class="surface transaction-hero-card validator-identity"><div><small>Validator public key</small><p class="mono">{{ data.public_key }}</p><div class="validator-membership-badges"><StatusBadge :status="data.currently_selected ? 'active' : 'not active'" /><StatusBadge v-if="data.selected_for_next_set" status="next set" /></div></div><CopyButton :value="data.public_key" label="validator public key" /></section>
+        <section class="surface transaction-hero-card validator-identity"><div><small>Validator public key</small><p class="mono">{{ canonicalPublicKey }}</p><div class="validator-membership-badges"><StatusBadge :status="data.currently_selected ? 'active' : 'not active'" /><StatusBadge v-if="data.selected_for_next_set" status="next set" /></div></div><CopyButton :value="canonicalPublicKey" label="validator membership identity" /></section>
+        <section class="surface page-surface"><h2>Consensus key</h2><dl class="detail-list"><div><dt>Signature suite</dt><dd>{{ signatureAlgorithm(data.current.algorithm_id) }}</dd></div><div><dt>Current key ID</dt><dd class="mono">{{ data.current.key_id ?? 'Not reported' }}</dd></div><div><dt>Public key</dt><dd><details><summary>{{ data.current.algorithm_id === 1 ? 'ML-DSA-44 key' : 'Consensus public key' }}</summary><pre>{{ data.current.pq_public_key ?? data.current.public_key ?? 'Not reported' }}</pre></details></dd></div></dl></section>
         <section class="metric-strip">
           <div><small>Latest observed weight</small><strong>{{ ratioPercent(data.current.weight, data.current.total_weight).toFixed(2) }}%</strong><span>{{ data.current.weight }} raw weight</span></div>
           <div><small>Retained selections</small><strong>{{ formatInteger(data.selected_sets) }}</strong><span>First seen {{ formatDate(data.first_observed_at) }}</span></div>
-          <div><small>Latest proof block</small><strong>{{ formatInteger(data.latest_observed_mc_seqno) }}</strong><span>{{ formatInteger(data.observed_signature_count) }} signatures on proof link</span></div>
+          <div><small>Latest proof block</small><strong>{{ formatInteger(data.latest_observed_mc_seqno) }}</strong><span>{{ data.signatures_available === false ? 'PQ signature evidence unavailable' : `${formatInteger(data.observed_signature_count ?? 0)} signatures on proof link` }}</span></div>
           <div><small>ADNL identity</small><strong class="mono compact-value">{{ compact(data.current.adnl_address, 10, 8) }}</strong><span>Consensus network identity</span></div>
         </section>
 
@@ -53,7 +54,7 @@ const validatorRoute = computed(() => `/validator/${validatorRouteKey(canonicalP
           <TrendChart :values="chronological.map((point) => ratioPercent(point.weight, point.total_weight))" :labels="chronological.map((point) => `Block ${point.observed_mc_seqno}`)" title="Voting-weight history" value-label="Share of proved validator set" :format="(value) => `${value.toFixed(2)}%`" />
           <TrendChart :values="rewards.map((cycle) => cycle.reward_rate * 100)" :labels="rewards.map((cycle) => `Election ${cycle.election_id}`)" title="Network reward history" value-label="Network-wide realized rate — not individual payout" :format="(value) => `${value.toFixed(2)}%`" />
         </section>
-        <section class="surface page-surface"><header class="section-heading"><div><h2>Selection observations</h2><p>Every retained proved set in which this public key appeared</p></div><ExportButton :filename="`toscan-validator-${data.public_key.slice(-10)}-history`" :headers="['Observed block','Observed at','Weight','Total weight','Weight share','ADNL']" :rows="data.history.map((point) => [point.observed_mc_seqno,point.observed_at,point.weight,point.total_weight,ratioPercent(point.weight,point.total_weight),point.adnl_address])" /></header><div class="data-table-wrap"><table class="data-table"><thead><tr><th>Block</th><th>Observed</th><th>Weight</th><th>Share</th><th>ADNL</th></tr></thead><tbody><tr v-for="point in data.history" :key="point.observed_mc_seqno"><td>{{ formatInteger(point.observed_mc_seqno) }}</td><td>{{ formatDate(point.observed_at) }}</td><td class="mono">{{ point.weight }}</td><td>{{ ratioPercent(point.weight,point.total_weight).toFixed(2) }}%</td><td class="mono">{{ compact(point.adnl_address,12,10) }}</td></tr></tbody></table></div></section>
+        <section class="surface page-surface"><header class="section-heading"><div><h2>Selection observations</h2><p>Every retained proved set in which this stable membership identity appeared</p></div><ExportButton :filename="`toscan-validator-${canonicalPublicKey.slice(-10)}-history`" :headers="['Observed block','Observed at','Weight','Total weight','Weight share','Algorithm','Key ID','ADNL']" :rows="data.history.map((point) => [point.observed_mc_seqno,point.observed_at,point.weight,point.total_weight,ratioPercent(point.weight,point.total_weight),signatureAlgorithm(point.algorithm_id),point.key_id ?? '',point.adnl_address])" /></header><div class="data-table-wrap"><table class="data-table"><thead><tr><th>Block</th><th>Observed</th><th>Weight</th><th>Share</th><th>Algorithm</th><th>Key ID</th><th>ADNL</th></tr></thead><tbody><tr v-for="point in data.history" :key="point.observed_mc_seqno"><td>{{ formatInteger(point.observed_mc_seqno) }}</td><td>{{ formatDate(point.observed_at) }}</td><td class="mono">{{ point.weight }}</td><td>{{ ratioPercent(point.weight,point.total_weight).toFixed(2) }}%</td><td>{{ signatureAlgorithm(point.algorithm_id) }}</td><td class="mono">{{ point.key_id ? compact(point.key_id,12,10) : "—" }}</td><td class="mono">{{ compact(point.adnl_address,12,10) }}</td></tr></tbody></table></div></section>
         <p class="surface evidence-note"><strong>Evidence boundary.</strong> TOSCAN proves set membership, timing, ADNL identity and weight from configuration cells. Proof signatures are shown only as network-level evidence because the current explorer projection does not retain a proved public-key-to-signature mapping. Elector exposes aggregate reward cycles, not a validator-address payout ledger; no network reward is attributed to this validator.</p>
       </template>
     </LoadState>

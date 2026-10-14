@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import AccountCryptography from "@/components/AccountCryptography.vue";
 import AppIcon from "@/components/AppIcon.vue";
 import CopyButton from "@/components/CopyButton.vue";
 import AddressLabelEditor from "@/components/AddressLabelEditor.vue";
@@ -44,6 +45,7 @@ const fingerprint = computed(() => data.value ? JSON.stringify([data.value.info.
           <div class="account-identity"><span class="entity-glyph entity-glyph--account"><AppIcon name="wallet" :size="23" /></span><div><small>TOS account</small><p class="mono">{{ data.address }}</p><AddressLabelEditor :address="data.address" :public-label="publicLabel" /></div><CopyButton :value="data.address" label="address" /></div>
           <div class="account-balance"><small>Balance</small><strong>{{ formatTos(data.info.balance) }} <em>TOS</em></strong><span>Synced {{ timeAgo(data.info.sync_utime) }}</span></div>
         </section>
+        <AccountCryptography :code="data.info.code" :data="data.info.data" />
         <section class="account-metrics">
           <div class="surface"><small>Account model</small><strong>{{ data.capability?.account_model ?? "Standard account" }}</strong><span>{{ data.capability?.wallet_type ?? data.info.state }}</span></div>
           <div class="surface"><small>Last transaction LT</small><strong class="mono">{{ compact(data.info.last_transaction_id.lt, 10, 5) }}</strong><span>{{ compact(data.info.last_transaction_id.hash) }}</span></div>

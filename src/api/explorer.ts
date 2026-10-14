@@ -1,5 +1,5 @@
 import { HttpClient } from "./http";
-import { JsonRpcClient, TransportError } from "./jsonRpc";
+import { JsonRpcClient, RpcError, TransportError } from "./jsonRpc";
 import type {
   AccountAgent,
   AccountCapability,
@@ -67,6 +67,7 @@ import {
   previewTasks,
   previewTransactions,
 } from "@/data/preview";
+import { decodeGlobalVersion, decodeAuthPolicy, decodeControllerPolicy, type AuthPolicy } from "@/utils/protocol";
 import { runtime } from "@/stores/runtime";
 
 const rpc = new JsonRpcClient({
@@ -75,7 +76,7 @@ const rpc = new JsonRpcClient({
   timeout: Number(import.meta.env.VITE_TOS_RPC_TIMEOUT_MS) || (import.meta.env.DEV ? 2_500 : 12_000),
 });
 const serviceApi = new HttpClient(import.meta.env.VITE_TOS_SERVICE_API_URL || "/tos-service-api");
-const previewEnabled = import.meta.env.VITE_ENABLE_PREVIEW === "true" || import.meta.env.DEV;
+const previewEnabled = import.meta.env.VITE_ENABLE_PREVIEW === "true" || (import.meta.env.DEV && import.meta.env.VITE_ENABLE_PREVIEW !== "false");
 
 async function withPreview<T>(live: () => Promise<T>, preview: () => T | Promise<T>): Promise<T> {
   if (runtime.mode.value === "preview") return preview();
@@ -834,6 +835,36 @@ export async function getValidatorOverview(): Promise<ValidatorOverview> {
   }));
 }
 
+export interface NetworkSecurity {
+  block: BlockId;
+  globalId: number;
+  chainTime: number;
+  version: number;
+  capabilities: string;
+  authPolicy: AuthPolicy | null;
+  controllerCodes: string[] | null;
+}
+
+export async function getNetworkSecurity(): Promise<NetworkSecurity> {
+  const info = await rpc.call<MasterchainInfo>("getMasterchainInfo");
+  const header = await rpc.call<BlockHeader>("getBlockHeader", { workchain: -1, shard: info.last.shard, seqno: info.last.seqno });
+  if (!header.id || header.id.seqno !== info.last.seqno || header.id.root_hash !== info.last.root_hash || header.id.file_hash !== info.last.file_hash || !Number.isInteger(header.global_id) || !Number.isInteger(header.gen_utime) || header.gen_utime < 0) throw new Error("Block header evidence is not bound to the observed block");
+  async function config(id: number, optionalParameter = false): Promise<string | null> {
+    try {
+      const value = await rpc.call<{ config: { bytes: string }; block_id: BlockId }>("getConfigParam", { param: id, seqno: info.last.seqno, with_proof: true });
+      if (!value.block_id || value.block_id.seqno !== info.last.seqno || value.block_id.root_hash !== info.last.root_hash || value.block_id.file_hash !== info.last.file_hash) throw new Error("Configuration evidence is not bound to the observed block");
+      return value.config.bytes;
+    } catch (error) {
+      if (optionalParameter && error instanceof RpcError && error.message === `config param ${id} not found`) return null;
+      throw error;
+    }
+  }
+  const [versionCell, controllerCell, policyCell] = await Promise.all([config(8), config(47, true), config(48, true)]);
+  const global = decodeGlobalVersion(versionCell!);
+  if (global.version >= 17 && !policyCell) throw new Error("Version 17+ requires AUTH policy #48");
+  return { block: info.last, globalId: header.global_id, chainTime: header.gen_utime, ...global, authPolicy: policyCell ? decodeAuthPolicy(policyCell) : null, controllerCodes: controllerCell ? decodeControllerPolicy(controllerCell) : null };
+}
+
 export async function getGovernanceConfig(): Promise<GovernanceConfigProof> {
   const definitions = [
     { id: 0, name: "Configuration authority", description: "The account authorized to change network configuration." },
@@ -841,6 +872,9 @@ export async function getGovernanceConfig(): Promise<GovernanceConfigProof> {
     { id: 34, name: "Current validator set", description: "The validator-set cell currently governing consensus." },
     { id: 36, name: "Next validator set", description: "The elected next validator set, when one is committed." },
     { id: 40, name: "Misbehavior and slashing", description: "The chain configuration for validator punishment, when enabled." },
+    { id: 43, name: "Message and state limits", description: "Protocol limits affecting large post-quantum messages and contract state." },
+    { id: 47, name: "Validator controller policy", description: "Committed controller code allowlist; code identity alone does not prove deployed account authority." },
+    { id: 48, name: "Quantum AUTH policy", description: "Network namespace, policy sequence and daily authorization retirement schedule; mandatory at version 17+." },
   ];
   return withPreview(async () => {
     const info = await rpc.call<MasterchainInfo>("getMasterchainInfo");

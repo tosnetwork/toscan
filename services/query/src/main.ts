@@ -16,6 +16,7 @@ const rpc = new TosRpc({
   baseUrl: process.env.TOS_RPC_UPSTREAM ?? "http://127.0.0.1:8011",
   apiKey: process.env.TOS_RPC_API_KEY,
   timeoutMs: Number(process.env.TOS_RPC_TIMEOUT_MS ?? 15_000),
+  requestsPerSecond: Number(process.env.QUERY_RPC_REQUESTS_PER_SECOND ?? 40),
 });
 const projector = new Projector(db, rpc, metrics, {
   sourceUrl: process.env.TOS_SOURCE_EXPLORER ?? "http://127.0.0.1:8080",

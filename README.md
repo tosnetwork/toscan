@@ -176,3 +176,10 @@ The interface includes a skip link, semantic navigation and tables, keyboard sea
 ## License
 
 TOSCAN uses the same license as TOS: GNU General Public License v3.0 or later. See [LICENSE](./LICENSE).
+
+## Post-quantum protocol parity
+
+See [PQ protocol parity and local validation](docs/post-quantum-parity.md) for stable
+validator identities, VM gates, AUTH policy and public account cryptography evidence.
+The node RPC currently does not expose PQ block signature carriers; TOSCAN reports
+that gap explicitly while continuing proof-backed membership projection.

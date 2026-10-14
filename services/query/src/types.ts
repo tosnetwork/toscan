@@ -163,7 +163,11 @@ export interface ExplorerStakingResponse {
 }
 
 export interface ValidatorMember {
-  public_key: string;
+  public_key: string | null;
+  validator_id?: string;
+  key_id?: string;
+  algorithm_id?: number;
+  pq_public_key?: string | null;
   adnl_address: string;
   weight: string;
   cumulative_weight: string;
@@ -179,6 +183,8 @@ export interface ValidatorSetConfig {
 }
 
 export interface ValidatorSetSnapshot {
+  signatures_available?: boolean;
+  signature_unavailable_reason?: string;
   observed_mc_seqno: number;
   observed_at: number;
   validator_set: ValidatorSetConfig | null;

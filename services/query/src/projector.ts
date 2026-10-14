@@ -4,6 +4,11 @@ import { Metrics } from "./metrics.js";
 import { TosRpc } from "./rpc.js";
 import type { ContractListResponse, DnsDomainHistoryResponse, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, TokenData, ValidatorSetConfig } from "./types.js";
 
+export function unavailablePqSignatures(error: unknown): { signatures: []; signatures_available: false; signature_unavailable_reason: string } {
+  if (!(error instanceof Error) || !error.message.endsWith(": post-quantum block signatures are not supported by JSON-RPC yet")) throw error;
+  return { signatures: [], signatures_available: false, signature_unavailable_reason: "PQ signature carrier is not exposed by this node RPC" };
+}
+
 export const CONTRACT_KINDS = [
   "agent_account",
   "task_escrow",
@@ -167,11 +172,14 @@ export class Projector {
     const [config, nextConfig, proof] = await Promise.all([
       this.rpc.call<{ validator_set?: ValidatorSetConfig }>("getConfigParam", { param: 34, seqno: headSeqno }),
       this.rpc.call<{ validator_set?: ValidatorSetConfig }>("getConfigParam", { param: 36, seqno: headSeqno })
-        .catch(() => null),
-      this.rpc.call<{ signatures?: Array<{ node_id_short: string; signature: string }> }>(
+        .catch((error: unknown) => {
+          if (error instanceof Error && error.message === "getConfigParam failed (500): config param 36 not found") return null;
+          throw error;
+        }),
+      this.rpc.call<{ signatures?: Array<{ node_id_short: string; signature: string }>; signatures_available?: boolean; signature_unavailable_reason?: string }>(
         "getMasterchainBlockSignatures",
         { seqno: headSeqno },
-      ),
+      ).catch(unavailablePqSignatures),
     ]);
     await this.db.recordValidatorSet({
       observed_mc_seqno: headSeqno,
@@ -179,16 +187,21 @@ export class Projector {
       validator_set: config.validator_set ?? null,
       next_validator_set: nextConfig?.validator_set ?? null,
       signatures: proof.signatures ?? [],
+      signatures_available: proof.signatures_available ?? true,
+      signature_unavailable_reason: proof.signature_unavailable_reason,
     });
   }
 
   private async syncGovernance(headSeqno: number): Promise<void> {
-    const ids = [0, 8, 34, 36, 40];
+    const ids = [0, 8, 34, 36, 40, 43, 47, 48];
     const parameters = await Promise.all(ids.map(async (id) => {
       const request = this.rpc.call<{ config?: { bytes?: string } }>(
         "getConfigParam", { param: id, seqno: headSeqno },
       );
-      const result = id === 36 ? await request.catch(() => null) : await request;
+      const result = [36, 43, 47, 48].includes(id) ? await request.catch((error: unknown) => {
+        if (error instanceof Error && error.message === `getConfigParam failed (500): config param ${id} not found`) return null;
+        throw error;
+      }) : await request;
       return { id, bytes: result?.config?.bytes ?? null };
     }));
     const snapshot: GovernanceSnapshot = {

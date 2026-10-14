@@ -72,3 +72,26 @@ describe("PostgreSQL projector RPC", () => {
     await expect(rpc.tokenData("0:master")).resolves.toMatchObject({ "@type": "ext.tokens.jettonMasterData" });
   });
 });
+
+describe("RPC backpressure", () => {
+  afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+  it("spaces concurrent requests and retries HTTP 429 within a bounded budget", async () => {
+    vi.useFakeTimers();
+    const times: number[] = [];
+    const fetcher = vi.fn(async () => { times.push(Date.now()); return response({}); });
+    vi.stubGlobal("fetch", fetcher);
+    const rpc = new TosRpc({ baseUrl: "http://node", requestsPerSecond: 40 });
+    const pending = Promise.all([rpc.call("a"), rpc.call("b"), rpc.call("c")]);
+    await vi.runAllTimersAsync(); await pending;
+    expect(times[1]! - times[0]!).toBeGreaterThanOrEqual(25);
+    expect(times[2]! - times[1]!).toBeGreaterThanOrEqual(25);
+    fetcher.mockImplementation(async () => new Response("Too many requests", { status: 429 }));
+    const failure = rpc.call("limited").catch((error: Error) => error.message);
+    await vi.runAllTimersAsync(); expect(await failure).toContain("(429)");
+    expect(fetcher).toHaveBeenCalledTimes(7);
+    fetcher.mockImplementation(async () => new Response(JSON.stringify({ error: "node unavailable" }), { status: 503 }));
+    const noRetry = rpc.call("unavailable").catch((error: Error) => error.message);
+    await vi.runAllTimersAsync(); expect(await noRetry).toContain("(503)");
+    expect(fetcher).toHaveBeenCalledTimes(8);
+  });
+});

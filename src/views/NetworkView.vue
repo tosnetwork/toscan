@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProtocolSecurity from "@/components/ProtocolSecurity.vue";
 import AppIcon from "@/components/AppIcon.vue";
 import BlockRows from "@/components/BlockRows.vue";
 import LoadState from "@/components/LoadState.vue";
@@ -34,6 +35,7 @@ function refreshAll() { void refresh(); void refreshIndex(); }
           <header class="section-heading"><div><h2>Recent finality</h2><p>Masterchain blocks in the current polling window</p></div><span class="live-label"><i></i>Current</span></header>
           <BlockRows :blocks="data.blocks" />
         </section>
+        <ProtocolSecurity />
         <section class="provenance-grid">
           <article class="surface"><span class="feature-icon"><AppIcon name="network" :size="20" /></span><h3>Chain-reported</h3><p>Block identifiers, account state and transaction records come from the configured node’s local liteserver state.</p></article>
           <article class="surface"><span class="feature-icon"><AppIcon name="block" :size="20" /></span><h3>Reconstructed consensus</h3><p>Signer counts reflect signatures recovered from proof links. They are not a live catchain telemetry stream.</p></article>

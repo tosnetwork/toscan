@@ -65,3 +65,21 @@ describe("query readiness", () => {
     await app.close();
   });
 });
+
+describe("PQ validator history", () => {
+  it("keeps key rotations under one stable identity without inventing an Ed25519 public key", async () => {
+    const identity = "YQ".repeat(21) + "==";
+    const snapshots = [2, 1].map((seqno) => ({ observed_mc_seqno: seqno, observed_at: 100 + seqno, data: {
+      observed_mc_seqno: seqno, observed_at: 100 + seqno,
+      validator_set: { total_weight: "10", validators: [{ validator_id: identity, public_key: null, key_id: `key-${seqno}`, algorithm_id: 1, pq_public_key: "public-pq-bytes", weight: "10" }] },
+    } }));
+    const db = { pool: { query: async (sql: string) => ({ rows: sql.includes("explorer_validator_sets") ? snapshots : [] }) } } as unknown as ProjectionDb;
+    const app = buildServer(db, new Metrics());
+    const reply = await app.inject(`/explorer/validators/${encodeURIComponent(identity)}`);
+    expect(reply.statusCode).toBe(200);
+    const result = reply.json().result;
+    expect(result).toMatchObject({ identity, validator_id: identity, public_key: null, currently_selected: true, selected_sets: 2 });
+    expect(result.history.map((point: { key_id: string }) => point.key_id)).toEqual(["key-2", "key-1"]);
+    await app.close();
+  });
+});

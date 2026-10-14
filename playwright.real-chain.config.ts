@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: "real-chain.spec.ts",
+  testMatch: ["real-chain.spec.ts", "pq-chain.spec.ts"],
   forbidOnly: true,
   retries: process.env.CI ? 1 : 0,
   workers: 1,
