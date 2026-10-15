@@ -16,8 +16,8 @@ test("PQ chain exposes stable validator identities and explicit protocol gates",
   await expect(page.getByText("Preview data", { exact: false })).toHaveCount(0);
   await page.goto("/validators");
   await expect(page.getByRole("heading", { name: "Current validator set" })).toBeVisible();
-  await expect(page.getByText("PQ signature evidence unavailable", { exact: true })).toBeVisible();
-  await expect(page.locator(".validator-metrics > div").filter({ hasText: "Observed proof signatures" }).locator("strong")).toHaveText("—");
+  await expect(page.getByText("PQ finality verified by node", { exact: true })).toBeVisible();
+  await expect(page.locator(".validator-metrics > div").filter({ hasText: "Observed proof signatures" }).locator("strong")).not.toHaveText("—");
   const rows = page.locator(".validator-table tbody tr");
   await expect(rows).toHaveCount(3);
   await expect(rows.first().getByText("ML-DSA-44", { exact: true })).toBeVisible();
@@ -43,8 +43,8 @@ test("Quantum candidate accounts expose public authority roles from live state",
   await expect(evidence.getByText("SLH-DSA-SHA2-128s", { exact: true })).toBeVisible();
   await expect(evidence.getByText("Stateful HSS/LMS H20/W4", { exact: true })).toBeVisible();
   await expect(evidence.getByText("Disabled; inert V5 field is zero", { exact: true })).toBeVisible();
-  await expect(evidence.getByText("Public fee tree ID", { exact: true })).toBeVisible();
+  await expect(evidence.getByText("fee / fee tree id", { exact: true })).toBeVisible();
   await page.goto(`/address/${process.env.TOSCAN_QUANTUM_VAULT}`);
-  await expect(page.getByRole("region", { name: "Account cryptography" }).getByText("Next fee leaf", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Account cryptography" }).getByText("next leaf", { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });

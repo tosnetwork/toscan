@@ -1,5 +1,7 @@
 import { HttpClient } from "./http";
-import { JsonRpcClient, RpcError, TransportError } from "./jsonRpc";
+import { PqExplorer } from "./pqExplorer";
+import type { DecodedConfig } from "./pq";
+import { JsonRpcClient, TransportError } from "./jsonRpc";
 import type {
   AccountAgent,
   AccountCapability,
@@ -67,7 +69,7 @@ import {
   previewTasks,
   previewTransactions,
 } from "@/data/preview";
-import { decodeGlobalVersion, decodeAuthPolicy, decodeControllerPolicy, type AuthPolicy } from "@/utils/protocol";
+import { type AuthPolicy } from "@/utils/protocol";
 import { runtime } from "@/stores/runtime";
 
 const rpc = new JsonRpcClient({
@@ -75,6 +77,7 @@ const rpc = new JsonRpcClient({
   transport: import.meta.env.VITE_TOS_RPC_TRANSPORT || (import.meta.env.PROD ? "rest" : "json-rpc"),
   timeout: Number(import.meta.env.VITE_TOS_RPC_TIMEOUT_MS) || (import.meta.env.DEV ? 2_500 : 12_000),
 });
+export const pqExplorer = new PqExplorer(rpc);
 const serviceApi = new HttpClient(import.meta.env.VITE_TOS_SERVICE_API_URL || "/tos-service-api");
 const previewEnabled = import.meta.env.VITE_ENABLE_PREVIEW === "true" || (import.meta.env.DEV && import.meta.env.VITE_ENABLE_PREVIEW !== "false");
 
@@ -326,6 +329,15 @@ async function listLiveServices(limit = 100): Promise<Service[]> {
   return (await serviceApi.get<ListResponse<Service>>("/services", { limit })).result;
 }
 
+export async function getObservedSignatureCount(): Promise<{ signature_count: number | null; observed_mc_seqno: number }> {
+  const response = await serviceApi.get<{ result: { signature_count: number | null; observed_mc_seqno: number; signatures_available: boolean } }>("/explorer/validators/signature-summary");
+  const value = response.result;
+  if (!Number.isInteger(value.observed_mc_seqno) || value.observed_mc_seqno < 0 || value.observed_mc_seqno > 2147483647) throw new Error("Invalid indexed signature observation");
+  if (value.signatures_available === false) return { signature_count: null, observed_mc_seqno: value.observed_mc_seqno };
+  if (value.signature_count === null || !Number.isInteger(value.signature_count) || value.signature_count < 0 || value.signature_count > 400) throw new Error("Invalid indexed signature count");
+  return value;
+}
+
 export async function getHome(): Promise<HomeData> {
   return withPreview(async () => {
     const blocks = await getLiveRecentBlocks(6);
@@ -337,7 +349,7 @@ export async function getHome(): Promise<HomeData> {
       optional(getTasksPage(0, 3).then((value) => value.items), []),
       optional(getServicesPage(0, 3).then((value) => value.items), []),
       optional(rpc.call<{ consensus_block: number }>("getConsensusBlock"), { consensus_block: 0 }),
-      optional(rpc.call<{ signatures: unknown[] }>("getMasterchainBlockSignatures", { seqno: blocks[0]?.seqno }), { signatures: [] }),
+      optional<{ signature_count: number | null; observed_mc_seqno: number | null }>(getObservedSignatureCount(), { signature_count: null, observed_mc_seqno: null }),
     ]);
     return {
       blocks,
@@ -345,7 +357,8 @@ export async function getHome(): Promise<HomeData> {
       tasks,
       services,
       consensusBlock: consensus.consensus_block || null,
-      signers: signatures.signatures.length || null,
+      signers: signatures.signature_count,
+      signerBlock: signatures.observed_mc_seqno,
     };
   }, () => previewHome);
 }
@@ -744,7 +757,7 @@ export async function getValidatorDetail(publicKey: string): Promise<ValidatorDe
         next_set_valid_from: current.next_validator_set?.utime_since ?? null,
         next_set_valid_until: current.next_validator_set?.utime_until ?? null,
         latest_observed_mc_seqno: current.observed_mc_seqno,
-        observed_signature_count: current.signatures.length,
+        observed_signature_count: current.signature_count ?? current.signatures.length,
         selected_sets: history.length,
         first_observed_at: history.at(-1)?.observed_at ?? current.observed_at,
         last_observed_at: current.observed_at,
@@ -843,26 +856,27 @@ export interface NetworkSecurity {
   capabilities: string;
   authPolicy: AuthPolicy | null;
   controllerCodes: string[] | null;
+  sizeLimits: DecodedConfig;
 }
 
 export async function getNetworkSecurity(): Promise<NetworkSecurity> {
-  const info = await rpc.call<MasterchainInfo>("getMasterchainInfo");
-  const header = await rpc.call<BlockHeader>("getBlockHeader", { workchain: -1, shard: info.last.shard, seqno: info.last.seqno });
-  if (!header.id || header.id.seqno !== info.last.seqno || header.id.root_hash !== info.last.root_hash || header.id.file_hash !== info.last.file_hash || !Number.isInteger(header.global_id) || !Number.isInteger(header.gen_utime) || header.gen_utime < 0) throw new Error("Block header evidence is not bound to the observed block");
-  async function config(id: number, optionalParameter = false): Promise<string | null> {
-    try {
-      const value = await rpc.call<{ config: { bytes: string }; block_id: BlockId }>("getConfigParam", { param: id, seqno: info.last.seqno, with_proof: true });
-      if (!value.block_id || value.block_id.seqno !== info.last.seqno || value.block_id.root_hash !== info.last.root_hash || value.block_id.file_hash !== info.last.file_hash) throw new Error("Configuration evidence is not bound to the observed block");
-      return value.config.bytes;
-    } catch (error) {
-      if (optionalParameter && error instanceof RpcError && error.message === `config param ${id} not found`) return null;
-      throw error;
-    }
+  if (runtime.mode.value === "preview") throw new Error("PQ evidence is unavailable in preview mode");
+  const block = await pqExplorer.observation();
+  // Two inspections at a time stay within the native default worker budget.
+  const global = await pqExplorer.config(8, block);
+  const [controllers, policy] = await Promise.all([pqExplorer.config(47, block), pqExplorer.config(48, block)]);
+  const limits = await pqExplorer.config(43, block);
+  for (const item of [controllers, policy, limits]) {
+    if (item.observation.global_id !== global.observation.global_id || item.observation.chain_time !== global.observation.chain_time || item.observation.vm_version !== global.observation.vm_version) throw new Error("Inconsistent configuration observation");
   }
-  const [versionCell, controllerCell, policyCell] = await Promise.all([config(8), config(47, true), config(48, true)]);
-  const global = decodeGlobalVersion(versionCell!);
-  if (global.version >= 17 && !policyCell) throw new Error("Version 17+ requires AUTH policy #48");
-  return { block: info.last, globalId: header.global_id, chainTime: header.gen_utime, ...global, authPolicy: policyCell ? decodeAuthPolicy(policyCell) : null, controllerCodes: controllerCell ? decodeControllerPolicy(controllerCell) : null };
+  const value = global.value!, auth = policy.value;
+  return {
+    block, globalId: global.observation.global_id, chainTime: global.observation.chain_time,
+    version: Number(value.version), capabilities: String(value.capabilities),
+    authPolicy: auth ? { networkTag: String(auth.network_tag), sequence: String(auth.policy_sequence), retired: Number(auth.retired_flags), primaryDeadline: auth.primary_deadline as number | null, specHash: String(auth.policy_spec_hash) } : null,
+    controllerCodes: controllers.value ? controllers.value.controller_codes as string[] : null,
+    sizeLimits: limits,
+  };
 }
 
 export async function getGovernanceConfig(): Promise<GovernanceConfigProof> {

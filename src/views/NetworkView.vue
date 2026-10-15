@@ -23,7 +23,7 @@ function refreshAll() { void refresh(); void refreshIndex(); }
           <div class="surface network-state"><span class="network-pulse"><i></i><i></i><b></b></span><div><small>Configured network</small><h2>{{ networkName }}</h2><p>Chain data is read directly from the configured TOS JSON-RPC node.</p></div><span class="status-badge" data-tone="positive">Connected</span></div>
           <div class="surface network-metric"><small>Chain tip</small><strong>{{ formatInteger(data.blocks[0]?.seqno) }}</strong><span>{{ timeAgo(data.blocks[0]?.time) }}</span></div>
           <div class="surface network-metric"><small>Consensus block</small><strong>{{ formatInteger(data.consensusBlock ?? undefined) }}</strong><span>Node-reported</span></div>
-          <div class="surface network-metric"><small>Observed signers</small><strong>{{ formatInteger(data.signers ?? undefined) }}</strong><span>Proof-chain signatures</span></div>
+          <div class="surface network-metric"><small>Observed signers</small><strong>{{ formatInteger(data.signers ?? undefined) }}</strong><span>{{ data.signerBlock == null ? "No indexed proof snapshot" : `Indexed proof block #${data.signerBlock}` }}</span></div>
         </section>
         <section v-if="indexStatus" class="index-health" aria-label="Explorer index health">
           <div class="surface"><small>Indexed blocks</small><strong>{{ formatInteger(indexStatus.blocks) }}</strong><span>{{ formatInteger(indexStatus.transactions) }} transactions</span></div>

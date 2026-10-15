@@ -31,7 +31,7 @@ const { t } = useLocale();
       <section v-if="data" class="metric-strip" aria-label="Network summary">
         <div><small>{{ t('Latest masterchain block') }}</small><strong>{{ formatInteger(data.blocks[0]?.seqno) }}</strong><span class="live-label"><i></i>{{ t('Live tip') }}</span></div>
         <div><small>{{ t('Consensus block') }}</small><strong>{{ formatInteger(data.consensusBlock ?? undefined) }}</strong><span>{{ t('Node-reported') }}</span></div>
-        <div><small>{{ t('Observed signers') }}</small><strong>{{ formatInteger(data.signers ?? undefined) }}</strong><span>{{ t('Latest proof link') }}</span></div>
+        <div><small>{{ t('Observed signers') }}</small><strong>{{ formatInteger(data.signers ?? undefined) }}</strong><span>{{ data.signerBlock == null ? t('No indexed proof snapshot') : `${t('Indexed proof block')} #${data.signerBlock}` }}</span></div>
         <div><small>{{ t('AI work shown') }}</small><strong>{{ formatInteger(data.tasks.length) }}</strong><span>{{ t('Current page window') }}</span></div>
       </section>
 

@@ -1,32 +1,40 @@
 import { describe, it, expect, vi } from "vitest";
-import { beginCell } from "@ton/core";
+import { masterBlock } from "./pq";
+import fixture from "./fixtures/pq-native.json";
 const { call } = vi.hoisted(() => ({ call: vi.fn() }));
 vi.mock("./jsonRpc", async (original) => ({ ...await original<typeof import("./jsonRpc")>(), JsonRpcClient: class { call = call; } }));
 import { getNetworkSecurity } from "./explorer";
 import { RpcError } from "./jsonRpc";
-const block = { workchain: -1, shard: "-9223372036854775808", seqno: 20, root_hash: "root", file_hash: "file" };
 function node(version: number, mismatched = false) {
+  const configs = fixture.configs.filter((c) => c.observation.vm_version === version);
+  const block = masterBlock(configs[0]!.observation.block_id);
   call.mockImplementation(async (method: string, params: { param?: number }) => {
     if (method === "getMasterchainInfo") return { last: block };
-    if (method === "getBlockHeader") return { id: block, global_id: 1, gen_utime: 100 };
-    if (params.param !== 8) throw new RpcError(`config param ${params.param} not found`, -32603);
-    return { block_id: { ...block, root_hash: mismatched ? "another" : "root" }, config: { bytes: beginCell().storeUint(0xc4, 8).storeUint(version, 32).storeUint(0, 64).endCell().toBoc().toString("base64") } };
+    const decoded = configs.find((c) => c.param === params.param)!;
+    return { block_id: { ...block, file_hash: mismatched ? btoa("x".repeat(32)) : block.file_hash }, decoded };
   });
+  return block;
 }
-describe("pinned network protocol evidence", () => {
-  it("accepts legacy absence but refuses mixed-block evidence and missing mandatory AUTH policy", async () => {
-    node(16); expect((await getNetworkSecurity()).authPolicy).toBeNull();
-    expect(call).toHaveBeenCalledWith("getConfigParam", { param: 8, seqno: 20, with_proof: true });
-    node(16, true); await expect(getNetworkSecurity()).rejects.toThrow("not bound");
-    node(18); await expect(getNetworkSecurity()).rejects.toThrow("requires AUTH policy");
+describe("pinned native protocol evidence", () => {
+  it("accepts explicit legacy absence and requests opt-in typed config without raw proofs", async () => {
+    const block = node(16);
+    const result = await getNetworkSecurity();
+    expect(result.authPolicy).toBeNull();
+    expect(result.sizeLimits.presence).toBe("absent");
+    expect(call).toHaveBeenCalledWith("getConfigParam", { param: 8, block_id: block, include_decoded: true, with_proof: false });
+    expect(call).not.toHaveBeenCalledWith("getBlockHeader", expect.anything());
+    node(18); expect((await getNetworkSecurity()).authPolicy?.sequence).toBe("0");
   });
-  it("does not disguise policy transport or decoding errors as absence", async () => {
-    node(16);
+  it("rejects mixed-block evidence", async () => {
+    node(16, true); await expect(getNetworkSecurity()).rejects.toThrow("Invalid PQ");
+  });
+  it("does not disguise native policy/transport failures as optional absence", async () => {
+    node(18);
     const implementation = call.getMockImplementation()!;
     call.mockImplementation(async (method, params) => {
-      if (method === "getConfigParam" && params.param === 48) throw new Error("timeout");
+      if (method === "getConfigParam" && params.param === 48) throw new RpcError("Invalid authenticated policy", -32603, undefined, { schema_version: 1, reason: "STATE_INVALID", retryable: false });
       return implementation(method, params);
     });
-    await expect(getNetworkSecurity()).rejects.toThrow("timeout");
+    await expect(getNetworkSecurity()).rejects.toThrow("Invalid authenticated policy");
   });
 });

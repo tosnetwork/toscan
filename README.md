@@ -183,3 +183,12 @@ See [PQ protocol parity and local validation](docs/post-quantum-parity.md) for s
 validator identities, VM gates, AUTH policy and public account cryptography evidence.
 The node RPC currently does not expose PQ block signature carriers; TOSCAN reports
 that gap explicitly while continuing proof-backed membership projection.
+
+## Native PQ explorer evidence
+
+The [native PQ RPC integration](docs/native-pq-rpc.md) adds node-verified finality,
+public account authorization, typed Config 8/43/47/48 and on-demand read-only proof
+transport. Deploy it with a node exposing those versioned interfaces; old nodes
+show explicit unsupported evidence. Browser observations are not independent
+consensus verification. Raw proofs are fetched on demand; query snapshots retain compact PQ signer
+metadata, and home/network counters use a compact indexed summary.

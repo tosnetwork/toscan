@@ -449,4 +449,23 @@ suite("PostgreSQL projection", () => {
     expect(await db.checkpoint()).toEqual(before);
     expect((await db.pool.query("SELECT 1 FROM explorer_blocks WHERE root_hash='root-malformed'")).rowCount).toBe(0);
   });
+  it("reads compact PQ counts, legacy arrays and unavailable evidence through actual PostgreSQL", async () => {
+    const cases = [
+      { signatures: [{ node_id_short: "classic-a", signature: "a" }, { node_id_short: "classic-b", signature: "b" }], expected: 2 },
+      { signatures: [], signature_count: 3, signature_payloads_retained: false, expected: 3 },
+      { signatures: [], signatures_available: false, expected: null },
+    ];
+    for (const [index, sample] of cases.entries()) {
+      const { expected, ...fields } = sample;
+      await db.recordValidatorSet({ observed_mc_seqno: 9_000 + index, observed_at: 1_700_000_000, validator_set: null, ...fields });
+      const app = buildServer(db, new Metrics());
+      try {
+        const response = await app.inject("/explorer/validators/signature-summary");
+        expect(response.statusCode).toBe(200);
+        expect(response.json().result).toEqual({ observed_mc_seqno: 9_000 + index, signature_count: expected, signatures_available: expected !== null });
+        expect(response.body.length).toBeLessThan(200);
+      } finally { await app.close(); }
+    }
+  });
+
 });

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from "vue";
 import { useRoute } from "vue-router";
+import BlockFinality from "@/components/BlockFinality.vue";
 import AppIcon from "@/components/AppIcon.vue";
 import CopyButton from "@/components/CopyButton.vue";
 import LoadState from "@/components/LoadState.vue";
@@ -71,6 +72,7 @@ watch(identity, () => transactionPagination.reset());
             </div>
           </div>
         </section>
+        <BlockFinality v-if="data.summary.workchain === -1" :block="data.summary" />
         <section class="surface page-surface detail-transactions">
           <header class="section-heading"><div><h2>Transactions</h2><p>{{ transactionPage?.complete === false ? "A bounded node window" : "Complete indexed block history" }}</p></div><span>{{ transactionPage?.total ?? 0 }} indexed</span></header>
           <LoadState :loading="transactionsLoading" :error="transactionsError" :empty="!transactionPage?.items.length" @retry="refreshTransactions">

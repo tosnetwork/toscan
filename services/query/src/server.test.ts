@@ -71,6 +71,7 @@ describe("PQ validator history", () => {
     const identity = "YQ".repeat(21) + "==";
     const snapshots = [2, 1].map((seqno) => ({ observed_mc_seqno: seqno, observed_at: 100 + seqno, data: {
       observed_mc_seqno: seqno, observed_at: 100 + seqno,
+      signature_count: 2, signature_payloads_retained: false, signatures: [],
       validator_set: { total_weight: "10", validators: [{ validator_id: identity, public_key: null, key_id: `key-${seqno}`, algorithm_id: 1, pq_public_key: "public-pq-bytes", weight: "10" }] },
     } }));
     const db = { pool: { query: async (sql: string) => ({ rows: sql.includes("explorer_validator_sets") ? snapshots : [] }) } } as unknown as ProjectionDb;
@@ -78,8 +79,29 @@ describe("PQ validator history", () => {
     const reply = await app.inject(`/explorer/validators/${encodeURIComponent(identity)}`);
     expect(reply.statusCode).toBe(200);
     const result = reply.json().result;
-    expect(result).toMatchObject({ identity, validator_id: identity, public_key: null, currently_selected: true, selected_sets: 2 });
+    expect(result).toMatchObject({ identity, validator_id: identity, public_key: null, currently_selected: true, selected_sets: 2, observed_signature_count: 2 });
     expect(result.history.map((point: { key_id: string }) => point.key_id)).toEqual(["key-2", "key-1"]);
+    await app.close();
+  });
+});
+
+describe("compact signature summaries", () => {
+  it("coalesces polling reads and returns counts without validator keys or signature payloads", async () => {
+    let reads = 0;
+    const db = { pool: { query: async () => { reads++; return { rows: [{ observed_mc_seqno: 7, signature_count: 3, signatures_available: true }] }; } } } as unknown as ProjectionDb;
+    const app = buildServer(db, new Metrics());
+    const replies = await Promise.all(Array.from({ length: 10 }, () => app.inject("/explorer/validators/signature-summary")));
+    expect(reads).toBe(1);
+    for (const response of replies) {
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({ ok: true, result: { observed_mc_seqno: 7, signature_count: 3, signatures_available: true } });
+      expect(response.body.length).toBeLessThan(200);
+    }
+    await app.close();
+  });
+  it("does not fabricate a zero count before projection", async () => {
+    const app = buildServer(database(), new Metrics());
+    expect((await app.inject("/explorer/validators/signature-summary")).statusCode).toBe(503);
     await app.close();
   });
 });

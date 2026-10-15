@@ -1,5 +1,9 @@
 # Post-quantum explorer parity
 
+**Native RPC follow-up:** [versioned native integration](native-pq-rpc.md) replaces
+the browser-decoder path and unsupported-signature limitation described below.
+This document retains the original assessment and source baseline.
+
 TOS source baseline: `d41eae93dbbcb2af730b4ff5015458794ef04cb1` (2026-10-14).
 TOSCAN base: `68a8cb680a9be6a7d2ec190fed41ab9e3ef86d07`.
 

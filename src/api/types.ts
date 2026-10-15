@@ -1,3 +1,4 @@
+import type { PqSignature, PqSignatures } from "./pq";
 export interface BlockId {
   workchain: number;
   shard: string;
@@ -395,10 +396,7 @@ export interface NominatorPoolDetail {
   effective_stake: EffectiveStakePolicy | null;
 }
 
-export interface BlockSignature {
-  node_id_short: string;
-  signature: string;
-}
+export type BlockSignature = { node_id_short: string; signature: string } | PqSignature;
 
 export interface BlockSignatures {
   id: BlockId;
@@ -428,6 +426,9 @@ export interface ValidatorOverview extends BlockSignatures {
 }
 
 export interface ValidatorSetSnapshot {
+  signature_count?: number;
+  signature_payloads_retained?: boolean;
+  signature_evidence?: Pick<PqSignatures, "id" | "session_id" | "slot" | "verification" | "signature_context"> & { signer_ids: string[] };
   signatures_available?: boolean;
   signature_unavailable_reason?: string;
   observed_mc_seqno: number;
@@ -693,6 +694,7 @@ export interface HomeData {
   services: Service[];
   consensusBlock: number | null;
   signers: number | null;
+  signerBlock?: number | null;
 }
 
 export interface BlockDetail {

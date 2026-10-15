@@ -1,3 +1,4 @@
+import type { PqSignature, PqSignatures } from "./pq.js";
 export interface BlockId {
   workchain: number;
   shard: string;
@@ -183,13 +184,16 @@ export interface ValidatorSetConfig {
 }
 
 export interface ValidatorSetSnapshot {
+  signature_count?: number;
+  signature_payloads_retained?: boolean;
+  signature_evidence?: Pick<PqSignatures, "id" | "session_id" | "slot" | "verification" | "signature_context"> & { signer_ids: string[] };
   signatures_available?: boolean;
   signature_unavailable_reason?: string;
   observed_mc_seqno: number;
   observed_at: number;
   validator_set: ValidatorSetConfig | null;
   next_validator_set?: ValidatorSetConfig | null;
-  signatures: Array<{ node_id_short: string; signature: string }>;
+  signatures: Array<{ node_id_short: string; signature: string } | PqSignature>;
 }
 
 export interface GovernanceSnapshot {

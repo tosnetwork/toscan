@@ -81,7 +81,7 @@ async function moveSetFocus(kind: "current" | "next"): Promise<void> {
           <div><small>Active validators</small><strong>{{ formatInteger(currentCount) }}</strong><span>{{ data.validator_set?.main ?? 0 }} masterchain validators</span></div>
           <div><small>{{ stakeLabel }}</small><strong>{{ formatTos(stakeValue) }}</strong><span>{{ staking?.current_election_available ? `${formatInteger(staking.current_participants)} election participants` : latestCycle ? `Election ${latestCycle.election_id}` : 'Elector evidence unavailable' }}</span></div>
           <div><small>Latest realized network APY</small><strong>{{ realizedApy }}</strong><span>{{ latestCycle ? `Completed election ${latestCycle.election_id}` : 'Awaiting a completed reward cycle' }}</span></div>
-          <div><small>Observed proof signatures</small><strong>{{ data.signatures_available === false ? "—" : formatInteger(data.signatures.length) }}</strong><span>Masterchain block {{ formatInteger(data.observed_mc_seqno) }}</span></div>
+          <div><small>Observed proof signatures</small><strong>{{ data.signatures_available === false ? "—" : formatInteger(data.signature_count ?? data.signatures.length) }}</strong><span>Masterchain block {{ formatInteger(data.observed_mc_seqno) }}</span></div>
         </section>
 
         <section class="surface validator-round" aria-labelledby="validator-round-title">
@@ -107,6 +107,7 @@ async function moveSetFocus(kind: "current" | "next"): Promise<void> {
           <RouterLink to="/staking">See staking evidence <AppIcon name="chevron" :size="15" /></RouterLink>
         </section>
 
+        <aside v-if="data.signature_evidence" class="surface evidence-note"><strong>PQ finality verified by node</strong><p>Historical signer evidence is bound to masterchain #{{ data.signature_evidence.id.seqno }} and validator-set source #{{ data.signature_evidence.verification.validator_set_source.seqno }}. Current membership is separate; individual historical key attribution is not inferred.</p><RouterLink :to="{ name: 'block', params: { workchain: -1, shard: data.signature_evidence.id.shard, seqno: data.signature_evidence.id.seqno } }">View finality evidence and proof</RouterLink></aside>
         <aside v-if="data.signatures_available === false" class="surface evidence-note"><strong>PQ signature evidence unavailable</strong><p>{{ data.signature_unavailable_reason }}. Membership and weights remain available from proved configuration; no zero-signature or independent verification claim is made.</p></aside>
         <section class="surface page-surface validator-directory">
           <header class="section-heading">

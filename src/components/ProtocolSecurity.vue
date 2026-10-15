@@ -5,7 +5,7 @@ import { getNetworkSecurity } from "@/api/explorer";
 import { useAsyncData } from "@/composables/useAsyncData";
 import { PQ_VM_SUITES } from "@/utils/protocol";
 import { formatDate } from "@/utils/format";
-const { data, loading, error, refresh } = useAsyncData(getNetworkSecurity, [], { refreshInterval: 30_000 });
+const { data, loading, error, refresh } = useAsyncData(getNetworkSecurity, [], { refreshInterval: 60_000, retry: false });
 const primaryRetired = computed(() => Boolean(data.value?.authPolicy && ((data.value.authPolicy.retired & 2) || (data.value.authPolicy.primaryDeadline !== null && data.value.chainTime >= data.value.authPolicy.primaryDeadline))));
 </script>
 <template>
@@ -17,10 +17,13 @@ const primaryRetired = computed(() => Boolean(data.value?.authPolicy && ((data.v
         <div class="data-table-wrap"><table class="data-table"><caption class="sr-only">PQ VM verifier availability</caption><thead><tr><th>Suite</th><th>Algorithm</th><th>Role</th><th>Minimum VM</th><th>VM verifier</th></tr></thead><tbody><tr v-for="suite in PQ_VM_SUITES" :key="suite.id"><td>{{ suite.id }}</td><td>{{ suite.name }}</td><td>{{ suite.role }}</td><td>{{ suite.minimumVersion }}</td><td>{{ data.version >= suite.minimumVersion ? 'Available' : 'Not enabled' }}</td></tr></tbody></table></div>
         <p class="panel-copy">Verifier availability does not establish which algorithm an account uses. Consensus membership and account authority are shown from their own chain evidence. Stateful fee-hash admission additionally requires VM 17.</p>
         <h3>Quantum AUTH retirement policy</h3>
-        <dl v-if="data.authPolicy" class="detail-list"><div><dt>Network namespace</dt><dd class="mono">{{ data.authPolicy.networkTag }}</dd></div><div><dt>Policy sequence</dt><dd>{{ data.authPolicy.sequence }}</dd></div><div><dt>Daily ML-DSA-44 authorization</dt><dd>{{ primaryRetired ? 'Retired at this block' : 'Not retired at this block' }}</dd></div><div><dt>Retirement deadline</dt><dd>{{ data.authPolicy.primaryDeadline === null ? 'No scheduled deadline' : formatDate(data.authPolicy.primaryDeadline) }}</dd></div></dl>
+        <dl v-if="data.authPolicy" class="detail-list"><div><dt>Network namespace (base64)</dt><dd class="mono">{{ data.authPolicy.networkTag }}</dd></div><div><dt>Policy sequence</dt><dd>{{ data.authPolicy.sequence }}</dd></div><div><dt>Daily ML-DSA-44 authorization</dt><dd>{{ primaryRetired ? 'Retired at this block' : 'Not retired at this block' }}</dd></div><div><dt>Retirement deadline</dt><dd>{{ data.authPolicy.primaryDeadline === null ? 'No scheduled deadline' : formatDate(data.authPolicy.primaryDeadline) }}</dd></div></dl>
         <p v-else class="inline-empty">AUTH policy #48 is not committed on this legacy network. It is mandatory at VM 17 and later.</p>
         <h3>Validator controller code policy</h3><details v-if="data.controllerCodes"><summary>{{ data.controllerCodes.length }} admitted code hashes</summary><pre>{{ data.controllerCodes.join('\n') || 'Empty allowlist' }}</pre></details><p v-else class="inline-empty">Controller code policy #47 is not committed at this block.</p>
-        <p class="evidence-note">The node verifies configuration proofs; TOSCAN checks the returned block binding and decodes the committed cells. This is not independent browser verification of consensus signatures.</p>
+        <h3>Message and account limits · Config 43</h3>
+        <p class="panel-copy">{{ data.sizeLimits.presence === 'absent' ? 'No committed override; native defaults apply.' : 'Configured limits with native defaults for omitted wire fields.' }} Fields labeled bits, cells or depth use those units; max ext msg size is bytes. Other fields are counts. They are not execution or fee guarantees.</p>
+        <dl class="detail-list detail-list--columns"><div v-for="(value, name) in data.sizeLimits.value?.effective" :key="name"><dt>{{ String(name).replaceAll('_', ' ') }}{{ (data.sizeLimits.value?.defaulted_fields as string[])?.includes(String(name)) ? ' (default)' : '' }}</dt><dd>{{ value === null ? 'Unlimited' : value }}</dd></div></dl>
+        <p class="evidence-note">The node verifies configuration proofs; TOSCAN checks the complete returned block binding and displays the native typed policy. This is not independent browser verification of consensus signatures.</p>
       </template>
     </LoadState>
   </section>

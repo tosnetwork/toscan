@@ -1,3 +1,4 @@
+import { boundedText } from "./response.js";
 import type {
   BlockHeader,
   BlockId,
@@ -16,6 +17,12 @@ interface RpcEnvelope<T> {
   ok?: boolean;
   result?: T;
   error?: string | { message?: string };
+  code?: number;
+  error_info?: { schema_version: number; reason: string; retryable: boolean };
+}
+
+export class TosRpcError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: number, readonly errorInfo?: RpcEnvelope<unknown>["error_info"]) { super(message); this.name = "TosRpcError"; }
 }
 
 export interface RpcOptions {
@@ -64,11 +71,11 @@ export class TosRpc {
         body: JSON.stringify(params),
         signal: controller.signal,
       });
-      if (response.status === 429) throw new Error(`${method} failed (429): rate limited`);
-      const payload = await response.json() as RpcEnvelope<T>;
+      if (response.status === 429) { await response.body?.cancel(); throw new TosRpcError(`${method} failed (429): rate limited`, 429); }
+      const payload = JSON.parse(await boundedText(response, 16 * 1024 * 1024)) as RpcEnvelope<T>;
       if (!response.ok || payload.error || payload.result === undefined) {
         const detail = typeof payload.error === "string" ? payload.error : payload.error?.message;
-        throw new Error(`${method} failed (${response.status}): ${detail ?? "invalid response"}`);
+        throw new TosRpcError(`${method} failed (${response.status}): ${detail ?? "invalid response"}`, response.status, payload.code, payload.error_info);
       }
       return payload.result;
     } finally {
