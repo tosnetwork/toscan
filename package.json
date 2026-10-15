@@ -45,9 +45,12 @@
     "stack:logs": "python3 scripts/dev-stack.py logs",
     "production:validate": "node scripts/validate-production-env.mjs",
     "production:smoke": "node scripts/smoke-production.mjs",
-    "check": "pnpm lint && pnpm typecheck && pnpm query:typecheck && pnpm test && pnpm build && pnpm query:build"
+    "check": "pnpm lint && pnpm typecheck && pnpm query:typecheck && pnpm test && pnpm build && pnpm query:build",
+    "test:pq:localnet": "tsx scripts/verify-pq-localnet.ts"
   },
   "dependencies": {
+    "@ton/core": "^0.63.1",
+    "buffer": "^6.0.3",
     "fastify": "^5.12.7",
     "pg": "^8.16.3",
     "vue": "^3.5.44",

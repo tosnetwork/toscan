@@ -3,6 +3,8 @@ import { recordClientDiagnostic } from "@/observability/client";
 
 interface AsyncDataOptions {
   refreshInterval?: number;
+  retry?: boolean;
+  resetOnLoad?: boolean;
 }
 
 export function useAsyncData<T>(
@@ -27,6 +29,7 @@ export function useAsyncData<T>(
     const current = ++request;
     if (!silent || data.value === null) loading.value = true;
     error.value = null;
+    if (options.resetOnLoad) data.value = null;
     try {
       const next = await loader();
       if (current === request) data.value = next;
@@ -34,7 +37,7 @@ export function useAsyncData<T>(
       if (current === request) {
         error.value = reason instanceof Error ? reason.message : "Something went wrong";
         recordClientDiagnostic({ type: "error", name: "Data load", detail: error.value });
-        retryTimer = setTimeout(() => {
+        if (options.retry !== false) retryTimer = setTimeout(() => {
           if (document.visibilityState === "visible") void load(false);
         }, 2_000);
       }

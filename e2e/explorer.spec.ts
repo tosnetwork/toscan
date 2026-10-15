@@ -69,7 +69,7 @@ test("staking, validator history, analytics and localization are explorable", as
   await expect(page.getByRole("heading", { name: "Current validator round" })).toBeVisible();
   await expect(page.getByText("Active validators")).toBeVisible();
   await expect(page.getByText("Stake above the cap earns no additional reward")).toBeVisible();
-  const validatorSearch = page.getByPlaceholder("Search public key or ADNL");
+  const validatorSearch = page.getByPlaceholder("Search identity, key ID or ADNL");
   await validatorSearch.fill("preview-validator-2");
   await expect(page.locator(".validator-table tbody tr")).toHaveCount(1);
   await validatorSearch.fill("");

@@ -1,8 +1,16 @@
 import { setTimeout as delay } from "node:timers/promises";
 import { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
-import { TosRpc } from "./rpc.js";
-import type { ContractListResponse, DnsDomainHistoryResponse, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, TokenData, ValidatorSetConfig } from "./types.js";
+import { pqSignatures } from "./pq.js";
+import type { PqSignatures } from "./pq.js";
+import { TosRpc, TosRpcError } from "./rpc.js";
+import type { ContractListResponse, DnsDomainHistoryResponse, ExplorerAsset, ExplorerContract, ExplorerStakingResponse, GovernanceSnapshot, TokenData, ValidatorSetSnapshot, ValidatorSetConfig } from "./types.js";
+
+export function unavailablePqSignatures(error: unknown): { signatures: []; signatures_available: false; signature_unavailable_reason: string } {
+  if (error instanceof TosRpcError && error.errorInfo) throw error;
+  if (!(error instanceof Error) || !error.message.endsWith(": post-quantum block signatures are not supported by JSON-RPC yet")) throw error;
+  return { signatures: [], signatures_available: false, signature_unavailable_reason: "PQ signature carrier is not exposed by this node RPC" };
+}
 
 export const CONTRACT_KINDS = [
   "agent_account",
@@ -164,31 +172,45 @@ export class Projector {
   }
 
   private async syncValidators(headSeqno: number): Promise<void> {
+    const target = await this.rpc.blockId(-1, "-9223372036854775808", headSeqno);
     const [config, nextConfig, proof] = await Promise.all([
       this.rpc.call<{ validator_set?: ValidatorSetConfig }>("getConfigParam", { param: 34, seqno: headSeqno }),
       this.rpc.call<{ validator_set?: ValidatorSetConfig }>("getConfigParam", { param: 36, seqno: headSeqno })
-        .catch(() => null),
-      this.rpc.call<{ signatures?: Array<{ node_id_short: string; signature: string }> }>(
+        .catch((error: unknown) => {
+          if (error instanceof Error && error.message === "getConfigParam failed (500): config param 36 not found") return null;
+          throw error;
+        }),
+      this.rpc.call<{ "@type"?: string; signatures?: ValidatorSetSnapshot["signatures"]; signatures_available?: boolean; signature_unavailable_reason?: string }>(
         "getMasterchainBlockSignatures",
-        { seqno: headSeqno },
-      ),
+        { block_id: target, with_proof: false },
+      ).catch(unavailablePqSignatures),
     ]);
+    let evidence: PqSignatures | undefined;
+    if ("@type" in proof && proof["@type"] === "blocks.blockSignatures.simplexPq") evidence = pqSignatures(proof, target);
     await this.db.recordValidatorSet({
       observed_mc_seqno: headSeqno,
       observed_at: Math.floor(Date.now() / 1000),
       validator_set: config.validator_set ?? null,
       next_validator_set: nextConfig?.validator_set ?? null,
-      signatures: proof.signatures ?? [],
+      signatures: evidence ? [] : proof.signatures ?? [],
+      signature_count: proof.signatures_available === false ? undefined : proof.signatures?.length ?? 0,
+      signature_payloads_retained: !evidence,
+      ...(evidence ? { signature_evidence: { id: evidence.id, session_id: evidence.session_id, slot: evidence.slot, verification: evidence.verification, signature_context: evidence.signature_context, signer_ids: evidence.signatures.map((signature) => signature.validator_id) } } : {}),
+      signatures_available: proof.signatures_available ?? true,
+      signature_unavailable_reason: proof.signature_unavailable_reason,
     });
   }
 
   private async syncGovernance(headSeqno: number): Promise<void> {
-    const ids = [0, 8, 34, 36, 40];
+    const ids = [0, 8, 34, 36, 40, 43, 47, 48];
     const parameters = await Promise.all(ids.map(async (id) => {
       const request = this.rpc.call<{ config?: { bytes?: string } }>(
         "getConfigParam", { param: id, seqno: headSeqno },
       );
-      const result = id === 36 ? await request.catch(() => null) : await request;
+      const result = [36, 43, 47, 48].includes(id) ? await request.catch((error: unknown) => {
+        if (error instanceof Error && error.message === `getConfigParam failed (500): config param ${id} not found`) return null;
+        throw error;
+      }) : await request;
       return { id, bytes: result?.config?.bytes ?? null };
     }));
     const snapshot: GovernanceSnapshot = {

@@ -1,3 +1,4 @@
+import type { PqSignature, PqSignatures } from "./pq";
 export interface BlockId {
   workchain: number;
   shard: string;
@@ -395,10 +396,7 @@ export interface NominatorPoolDetail {
   effective_stake: EffectiveStakePolicy | null;
 }
 
-export interface BlockSignature {
-  node_id_short: string;
-  signature: string;
-}
+export type BlockSignature = { node_id_short: string; signature: string } | PqSignature;
 
 export interface BlockSignatures {
   id: BlockId;
@@ -412,7 +410,11 @@ export interface ValidatorSetConfig {
   main: number;
   total_weight: string;
   validators: Array<{
-    public_key: string;
+    public_key: string | null;
+    validator_id?: string;
+    key_id?: string;
+    algorithm_id?: number;
+    pq_public_key?: string | null;
     adnl_address: string;
     weight: string;
     cumulative_weight: string;
@@ -424,6 +426,11 @@ export interface ValidatorOverview extends BlockSignatures {
 }
 
 export interface ValidatorSetSnapshot {
+  signature_count?: number;
+  signature_payloads_retained?: boolean;
+  signature_evidence?: Pick<PqSignatures, "id" | "session_id" | "slot" | "verification" | "signature_context"> & { signer_ids: string[] };
+  signatures_available?: boolean;
+  signature_unavailable_reason?: string;
   observed_mc_seqno: number;
   observed_at: number;
   validator_set: ValidatorSetConfig | null;
@@ -446,18 +453,24 @@ export interface ValidatorDashboard extends ValidatorSetSnapshot {
 }
 
 export interface ValidatorHistoryPoint {
+  validator_id?: string;
+  key_id?: string;
+  algorithm_id?: number;
+  pq_public_key?: string | null;
   observed_mc_seqno: number;
   observed_at: number;
   total_weight: string;
   selection_phase?: "current" | "next";
-  public_key: string;
+  public_key: string | null;
   adnl_address: string;
   weight: string;
   cumulative_weight: string;
 }
 
 export interface ValidatorDetail {
-  public_key: string;
+  public_key: string | null;
+  identity?: string;
+  validator_id?: string;
   current: ValidatorHistoryPoint;
   currently_selected: boolean;
   selected_for_next_set: boolean;
@@ -465,7 +478,9 @@ export interface ValidatorDetail {
   next_set_valid_from: number | null;
   next_set_valid_until: number | null;
   latest_observed_mc_seqno: number;
-  observed_signature_count: number;
+  observed_signature_count: number | null;
+  signatures_available?: boolean;
+  signature_unavailable_reason?: string;
   selected_sets: number;
   first_observed_at: number;
   last_observed_at: number;
@@ -679,6 +694,7 @@ export interface HomeData {
   services: Service[];
   consensusBlock: number | null;
   signers: number | null;
+  signerBlock?: number | null;
 }
 
 export interface BlockDetail {

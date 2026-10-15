@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ProofQueryForm from "@/components/ProofQueryForm.vue";
 import PageHeading from "@/components/PageHeading.vue";
 
 const endpoints = [
@@ -21,6 +22,7 @@ const endpoints = [
   ["GET", "/explorer/labels/{address}", "Reviewed public address labels"],
   ["GET", "/explorer/verifications", "Matched contract build attestations"],
   ["GET", "/explorer/verifications/{address}", "Contract build evidence"],
+  ["GET", "/explorer/validators/signature-summary", "Compact indexed signer count without raw PQ payloads"],
   ["GET", "/explorer/validators", "Proof-decoded validator sets"],
   ["GET", "/explorer/validators/{publicKey}", "Validator membership history"],
   ["GET", "/explorer/staking", "Elector rewards and canonical pools"],
@@ -40,6 +42,7 @@ const endpoints = [
     </section>
     <section class="surface evidence-card"><h2>Example</h2><pre>curl --fail \
   'https://explorer.example/tos-service-api/explorer/blocks?limit=20'</pre></section>
+    <ProofQueryForm />
     <aside class="truth-note"><strong>Authority model</strong><p>The API is a rebuildable read projection. Finalized TOS state and proof-backed node responses remain authoritative. Operator, mutation and transaction-submission routes are deliberately unavailable from the explorer origin.</p></aside>
   </div>
 </template>

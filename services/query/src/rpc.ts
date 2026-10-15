@@ -1,3 +1,4 @@
+import { boundedText } from "./response.js";
 import type {
   BlockHeader,
   BlockId,
@@ -16,18 +17,48 @@ interface RpcEnvelope<T> {
   ok?: boolean;
   result?: T;
   error?: string | { message?: string };
+  code?: number;
+  error_info?: { schema_version: number; reason: string; retryable: boolean };
+}
+
+export class TosRpcError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: number, readonly errorInfo?: RpcEnvelope<unknown>["error_info"]) { super(message); this.name = "TosRpcError"; }
 }
 
 export interface RpcOptions {
   baseUrl: string;
   apiKey?: string;
   timeoutMs?: number;
+  requestsPerSecond?: number;
 }
 
 export class TosRpc {
+  private nextRequestAt = 0;
+
   constructor(private readonly options: RpcOptions) {}
 
+  private async reserveSlot(): Promise<void> {
+    const rate = this.options.requestsPerSecond ?? 40;
+    if (!Number.isFinite(rate) || rate < 1 || rate > 100) throw new Error("RPC request rate must be between 1 and 100");
+    const now = Date.now();
+    const scheduled = Math.max(now, this.nextRequestAt);
+    this.nextRequestAt = scheduled + 1000 / rate;
+    if (scheduled > now) await new Promise((resolve) => setTimeout(resolve, scheduled - now));
+  }
+
   async call<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+    await this.reserveSlot();
+    for (let attempt = 0; ; attempt++) {
+      try { return await this.request<T>(method, params); }
+      catch (error) {
+        if (!(error instanceof Error) || !error.message.startsWith(`${method} failed (429):`) || attempt >= 3) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
+        await this.reserveSlot();
+      }
+    }
+  }
+
+  private async request<T>(method: string, params: Record<string, unknown>): Promise<T> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.options.timeoutMs ?? 15_000);
     try {
@@ -40,10 +71,11 @@ export class TosRpc {
         body: JSON.stringify(params),
         signal: controller.signal,
       });
-      const payload = await response.json() as RpcEnvelope<T>;
+      if (response.status === 429) { await response.body?.cancel(); throw new TosRpcError(`${method} failed (429): rate limited`, 429); }
+      const payload = JSON.parse(await boundedText(response, 16 * 1024 * 1024)) as RpcEnvelope<T>;
       if (!response.ok || payload.error || payload.result === undefined) {
         const detail = typeof payload.error === "string" ? payload.error : payload.error?.message;
-        throw new Error(`${method} failed (${response.status}): ${detail ?? "invalid response"}`);
+        throw new TosRpcError(`${method} failed (${response.status}): ${detail ?? "invalid response"}`, response.status, payload.code, payload.error_info);
       }
       return payload.result;
     } finally {

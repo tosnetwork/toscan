@@ -2,6 +2,16 @@ import type { ValidatorSetConfig } from "@/api/types";
 
 export type ValidatorSort = "weight-desc" | "weight-asc" | "identity-asc";
 
+export function validatorIdentity(member: { public_key?: string | null; validator_id?: string }): string {
+  return member.validator_id || member.public_key || "";
+}
+
+export function signatureAlgorithm(id?: number): string {
+  if (id === 0) return "Ed25519";
+  if (id === 1) return "ML-DSA-44";
+  return id === undefined ? "Not reported" : `Unknown suite ${id}`;
+}
+
 export type ValidatorRow = ValidatorSetConfig["validators"][number] & {
   rank: number;
   masterchain: boolean;
@@ -42,10 +52,10 @@ export function filterAndSortValidators(
 ): ValidatorRow[] {
   const needle = query.trim().toLowerCase();
   const filtered = needle
-    ? rows.filter((row) => row.public_key.toLowerCase().includes(needle) || row.adnl_address.toLowerCase().includes(needle))
+    ? rows.filter((row) => [validatorIdentity(row), row.public_key, row.key_id, row.adnl_address, signatureAlgorithm(row.algorithm_id)].some((value) => value?.toLowerCase().includes(needle)))
     : [...rows];
   return filtered.sort((left, right) => {
-    if (sort === "identity-asc") return left.public_key.localeCompare(right.public_key);
+    if (sort === "identity-asc") return validatorIdentity(left).localeCompare(validatorIdentity(right));
     const weight = compareWeight(left.weight, right.weight);
     if (weight !== 0) return sort === "weight-asc" ? weight : -weight;
     return left.rank - right.rank;

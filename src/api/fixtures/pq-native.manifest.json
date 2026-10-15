@@ -1,0 +1,15 @@
+{
+  "scope": "Public loopback three-validator native RPC responses. Fixture shape/binding tests do not independently verify signatures. Proof bytes are public. No private keys.",
+  "native_rpc_commit": "549212a227323eb3d21f0e9b06aec4dc2663582f",
+  "fixture_sha256": "6de38b44636c179ef580557d16464c58895acae48ed437fe28915280c242fdd4",
+  "source_receipts": [
+    {
+      "name": "get-v18-rpc-evidence.json",
+      "sha256": "df7c134d4d61f032f280ce5ec8556c126bed35c8b2f5846cb0251e4da29a4fc4"
+    },
+    {
+      "name": "get-v16-rpc-evidence.json",
+      "sha256": "5d543426bce5e45341b3edb169842704a987b456294a6313f5f82171e4637794"
+    }
+  ]
+}

@@ -43,7 +43,7 @@ function changedParameters(snapshot: GovernanceSnapshot, older?: GovernanceSnaps
             <p v-if="!history.items.length" class="inline-empty">No retained configuration snapshots are available yet.</p>
           </div>
         </section>
-        <aside class="truth-note"><strong>Proof boundary</strong><p>The node extracts each cell from masterchain state and configuration proofs. TOSCAN deliberately shows the raw commitment when it does not yet have a version-safe semantic decoder.</p></aside>
+        <aside class="truth-note"><strong>Proof boundary</strong><p>The node extracts each cell from masterchain state and configuration proofs. This view retains raw commitments. Typed PQ policy and effective size limits, including defaults and authenticated absence, are available in the network protocol view.</p></aside>
         <aside class="truth-note"><strong>Governance attribution boundary</strong><p>This timeline proves configuration-cell changes. It does not invent proposal authors, off-chain deliberation or individual votes because those identities are not exposed by the currently indexed chain evidence.</p></aside>
       </template>
     </LoadState>

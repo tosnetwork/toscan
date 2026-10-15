@@ -1,13 +1,19 @@
+import { boundedText, ResponseLimitError } from "../../services/query/src/response";
 interface RpcSuccess<T> {
   jsonrpc: "2.0";
   id: number;
   result: T;
 }
 
+export interface RpcErrorInfo {
+  schema_version: 1; reason: string; retryable: boolean;
+}
+
 interface RpcFailure {
   jsonrpc: "2.0";
   id: number;
   error: { code: number; message: string; data?: unknown };
+  error_info?: RpcErrorInfo;
 }
 
 interface RestFailure {
@@ -16,6 +22,7 @@ interface RestFailure {
   ok?: false;
   error: string;
   code: number;
+  error_info?: RpcErrorInfo;
 }
 
 export class RpcError extends Error {
@@ -23,6 +30,7 @@ export class RpcError extends Error {
     message: string,
     readonly code: number,
     readonly data?: unknown,
+    readonly errorInfo?: RpcErrorInfo,
   ) {
     super(message);
     this.name = "RpcError";
@@ -35,6 +43,9 @@ export class TransportError extends Error {
     this.name = "TransportError";
   }
 }
+
+export interface RpcCallOptions { maxResponseBytes?: number }
+
 
 export interface JsonRpcClientOptions {
   endpoint: string;
@@ -51,7 +62,7 @@ export class JsonRpcClient {
     this.fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
   }
 
-  async call<T>(method: string, params: Record<string, unknown> = {}): Promise<T> {
+  async call<T>(method: string, params: Record<string, unknown> = {}, options: RpcCallOptions = {}): Promise<T> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.options.timeout ?? 12_000);
 
@@ -65,25 +76,28 @@ export class JsonRpcClient {
         body: JSON.stringify(rest ? params : { jsonrpc: "2.0", id: ++this.requestId, method, params }),
         signal: controller.signal,
       });
-      const text = await response.text();
+      const text = await boundedText(response, options.maxResponseBytes ?? 16 * 1024 * 1024);
       let payload: RpcSuccess<T> | RpcFailure | RestFailure;
       try {
         payload = JSON.parse(text) as RpcSuccess<T> | RpcFailure | RestFailure;
       } catch (error) {
         throw new TransportError(`TOS RPC returned an invalid response (${response.status})`, error);
       }
+      if (!payload || typeof payload !== "object") throw new TransportError("TOS RPC returned an invalid envelope");
       if ("error" in payload) {
         if (typeof payload.error === "string") {
-          throw new RpcError(payload.error, "code" in payload ? payload.code : -32603);
+          throw new RpcError(payload.error, "code" in payload ? payload.code : -32603, undefined, payload.error_info);
         }
-        throw new RpcError(payload.error.message, payload.error.code, payload.error.data);
+        throw new RpcError(payload.error.message, payload.error.code, payload.error.data, payload.error_info);
       }
       if (!response.ok) {
         throw new TransportError(`TOS RPC request failed (${response.status})`);
       }
+      if (!("result" in payload)) throw new TransportError("TOS RPC returned an invalid envelope");
       return payload.result;
     } catch (error) {
       if (error instanceof RpcError || error instanceof TransportError) throw error;
+      if (error instanceof ResponseLimitError) throw new TransportError(error.message, error);
       const message = error instanceof DOMException && error.name === "AbortError"
         ? `TOS RPC timed out after ${this.options.timeout ?? 12_000}ms`
         : "TOS RPC is unavailable";

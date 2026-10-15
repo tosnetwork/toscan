@@ -1,0 +1,206 @@
+{
+  "observed_at_utc": "2026-10-15T04:06:32.348724+00:00",
+  "frontend_base": "b000d3ce99c19910585241779d226bcbd99ec9e7",
+  "native_source": "8d8a065227c6c83f5686e56c3da783132f4745f2",
+  "host": "macOS arm64; Node 22.23.1; PostgreSQL 16.14; Chromium desktop and Pixel 7 layout emulation",
+  "results": {
+    "quality_exit": 0,
+    "unit_tests_passed": 78,
+    "default_database_tests_skipped": 21,
+    "postgresql_integration_passed": 16,
+    "deterministic_browser_passed": 11,
+    "existing_browser_skip": 1,
+    "native_browser_passed": 6,
+    "native_vm18_and_vm16_probes_exit": 0,
+    "guard_removal_controls": 2
+  },
+  "scope": "Public node-verified RPC observations; not independent browser proof verification, production/physical-device deployment, signer safety or account admission. Recovery/scale CI is separate. The standalone native browser suite does not assert query PostgreSQL readiness.",
+  "source_file_sha256": {
+    "deploy/default.conf.template": "68c6f64c24d3e202843061fcca8527bae6d6f6020995991ec05558cd726422bd",
+    "e2e/pq-chain.spec.ts": "7fcda4e76ca63450a3839382c65449150b34a21eec286df726ab4b6e10f07546",
+    "e2e/pq-native-rpc.spec.ts": "f4070ab8701676d702ef0e5d0afddd9b3d72f93613504e178162966c7c6b08a4",
+    "playwright.config.ts": "0d6365b02faf0c1b0ec47d95a908daf18e5ade203d812a9a0d59ecc47011559c",
+    "playwright.pq-rpc.config.ts": "8cec54f93cca77b0a4adc68a1943771249a54fe488098ebadddde4d8b942e897",
+    "public/openapi.json": "fd4b26e76101db6192c58704be36bac313f6ac3947f62b511a398a2dff8dae59",
+    "scripts/verify-pq-localnet.ts": "3dd801501357c260d3de33f7d2d5d02b3b7e9681d2c244a7d2002b7b5d6d9ed3",
+    "services/query/src/db.integration.test.ts": "183b208f6424277c0ecdaac52894e97e1b952861ea8586dcac30dab4cd5edd2f",
+    "services/query/src/pq.ts": "a9e7f0eef95a57b7ec3065f81040412f0c878113d9e2cf50d05128bfc6fc8cb0",
+    "services/query/src/projector.test.ts": "4c16d385367b3e0f9e46480086c2afd2eb9df29769fd827438d22211a50aa0be",
+    "services/query/src/projector.ts": "d1c1904f5026f44e8e2972af3446213ae42a69aff088aa3c1a3f4d0d466db89e",
+    "services/query/src/response.ts": "cb4dbd5284f769b69f411507e3a8460d508838f19bd5bd7f36d4899c799fe1bf",
+    "services/query/src/rpc.ts": "fc316e40bb3fd8aceb8229eb2bb9dc0a41771d0123a819bd2601fe99de02d38f",
+    "services/query/src/server.test.ts": "ad009c679f714ca0eed2b27903121f4b7746a83ac4bf1ab6feb2677464851614",
+    "services/query/src/server.ts": "b396d32caa78fb8b250ad4094c0bf129809ee117c3d83788a8a1db59a20f8214",
+    "services/query/src/types.ts": "85aab1e7de44fbf3e0f663a3bb87e834d374890bd24f1bc61975211fcab180e4",
+    "src/api/explorer.ts": "46cf78f2abe4325213c1b9453b50b7102f47341778530511a5d668d78a403ec6",
+    "src/api/fixtures/pq-native.json": "6de38b44636c179ef580557d16464c58895acae48ed437fe28915280c242fdd4",
+    "src/api/fixtures/pq-native.manifest.json": "4766662d533fefa7d080c5a8c2d459c13758b63b88e80713adecaceea951ceed",
+    "src/api/jsonRpc.test.ts": "cf172a6d66a1a994f35295c55fa1200408e3826e6b2006825e07d9f736ca18c0",
+    "src/api/jsonRpc.ts": "f73c6972c6b6d90c5cb91baa1e574cdc16a3b3dc97ecca31f7c1d1ea59213608",
+    "src/api/network-security.test.ts": "89b3ea30f1dc5421b0c3db8dffbfb7d0aa5c047a89ab2b2aae0017637e2dd1d8",
+    "src/api/pq.test.ts": "8d961b526053fba037ca12df50e96f26a3328165f2d1b211995676f9d9a1fba2",
+    "src/api/pq.ts": "e41f454912ee5b38463a1ab5c6311fb54546093a9895b8ea4b8ca02df8ceccab",
+    "src/api/pqExplorer.ts": "89a6bda3d7b682629d7e043ac4244940e908b319ce21e6b1ec48343cfa860eda",
+    "src/api/signature-summary.test.ts": "cd7a8fe3f688685c8bb43afa0b769bee5b3fbed0b953979cdc156cef953c9b8f",
+    "src/api/types.ts": "617289dfe6c74c6750828da4b2b1c8275b41a1d020f44fd8efb28df1d185b23e",
+    "src/components/AccountCryptography.vue": "1637324514c6666196d3880c2680bdfb88f47a4f779361ea3e32bb9144309747",
+    "src/components/BlockFinality.vue": "afa3cb999cf255d10e4469c72e14a3f3743075f31d9254b55b4579b5d6635c84",
+    "src/components/ProofQueryForm.vue": "03d318baaed2cd9f7b2de819b411efb4dba5f12f09757c6f52731f22bd9517ba",
+    "src/components/ProtocolSecurity.vue": "29938d62eddc5cc08ef352dd4dba9af7414556b0e6e2609482d0c3badc1068c1",
+    "src/components/pq-evidence.test.ts": "a6100d07e288ef0d2f68d1bd2a1a7d873c3b819f41ae2ef3c671b50c7f7c5ba4",
+    "src/composables/useAsyncData.ts": "ee1013b0b8e20ed6175c26157d979d6c4295649e05b3fa529c272909b793f5e4",
+    "src/utils/download.ts": "d05598847a60e59c9aee2995d644c129b3232b8a1a3125efd15a860a0eb75d6a",
+    "src/views/AddressView.vue": "d58894f050d4fb8c29e2883449685de0378761a48472cd5e6cf0fc7cf76173b7",
+    "src/views/ApiDocsView.vue": "313cdadb26d005cb24677b797e24a719a51206412333d1033312b15649454657",
+    "src/views/BlockDetailView.vue": "33f0ff987eb4507fe7e8e5c0167113b39eb7d090d202fe0cac502cab2796a16c",
+    "src/views/GovernanceView.vue": "673960ff86245f832a0af9ee6fd5c355d6ab58d9b335f60b5b840e76a63a28a2",
+    "src/views/HomeView.vue": "082fbf7a6fc08c4692e8b0f02414318d8331bd8959c2901612fca6dc1165e312",
+    "src/views/NetworkView.vue": "2c8b2f9dddcc8de600201c285d8d0c76be32d541cffdc22bb81c1fdedb9a4a1e",
+    "src/views/ValidatorsView.vue": "e5830600698491ab5c31ea0520459ed31ef5ee90c7093fc1d264ba5f821b6146"
+  },
+  "sensitivity_controls": [
+    {
+      "case": "full-block-binding",
+      "source_sha256": "a9e7f0eef95a57b7ec3065f81040412f0c878113d9e2cf50d05128bfc6fc8cb0",
+      "test_selection": "checks the complete block binding including root_hash",
+      "red_exit": 1,
+      "green_exit": 0
+    },
+    {
+      "case": "duplicate-signer",
+      "source_sha256": "a9e7f0eef95a57b7ec3065f81040412f0c878113d9e2cf50d05128bfc6fc8cb0",
+      "test_selection": "rejects duplicate",
+      "red_exit": 1,
+      "green_exit": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/pq-rpc-check.log",
+      "sha256": "0bdeef8d66ab3ff760c96fee5a718371ccf6b38650ee5c05c5398c6170835a40",
+      "bytes": 20867,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/pq-rpc-browser-regression.log",
+      "sha256": "87904decba6a5b79aa02f5af9a9900c60ef4083c85fcbe197f9a0d1a5d306da8",
+      "bytes": 3367,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/pq-rpc-postgres-integration.log",
+      "sha256": "52e9fb85eaf3cb01cee6eef3794f1fdc6287d521318a666e99321d05062c8ef7",
+      "bytes": 16133,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/vm18/public-rpc-evidence.json",
+      "sha256": "1ce49fb2552eda0a306218c5f10e6539baa829741ccf188ea3f82fb143714985",
+      "bytes": 101178,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/vm18/probe.log",
+      "sha256": "b31536c567a3aa9dba7c6ec18d04e0c6845484fa50a678175fd588653df36a2d",
+      "bytes": 390,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/vm16/public-rpc-evidence.json",
+      "sha256": "694e5ee214272fda954e66232e66b20473a3b49c0561c2e55efadd23a9e2707b",
+      "bytes": 31880,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/vm16/probe.log",
+      "sha256": "11ade2ea555fec340c21f448e5c5dcdae9eaf010a0a9f2c5ad80a8d791a01193",
+      "bytes": 229,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/vm18/browser.log",
+      "sha256": "49a387c546215b8bc61ddca912e604cf9969ba63e8aadcea54e00135bdadda3a",
+      "bytes": 13706,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/controls/controls.json",
+      "sha256": "a7e81ab48e2aeb42e788fc4772cfbc6febf043dfcbc94e3e80b7f8f7a161dd7a",
+      "bytes": 465,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/controls/duplicate-signer-green.log",
+      "sha256": "1b212eee7705a7a05247a2919dd03c518cf01d9a79ac7764c0f24d421af6b7d0",
+      "bytes": 233,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/controls/full-block-binding-red.log",
+      "sha256": "315af888cf9844ee86f703017c756bae9d79656e3471a5fe846fd9417af585fe",
+      "bytes": 1113,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/controls/full-block-binding-green.log",
+      "sha256": "2dab1fa369fdcb50a67c7ff9827a6229a36d13c7852cfb23819e8000f44679de",
+      "bytes": 233,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/controls/duplicate-signer-red.log",
+      "sha256": "f347810b714b90a3363cc782e9eb8368d4b65b7d013bbbc24a3d08030b1474e7",
+      "bytes": 1253,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-desktop/protocol.png",
+      "sha256": "aed8688c405d8e266964821dcfc7bf6d2a4f3a66524eec6c82f06aea29d02678",
+      "bytes": 194278,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-desktop/account.png",
+      "sha256": "d1107aa83b2fa6dd1dac796d4dcec4bf00db4b13a59b31422bc4a7a90b5e983d",
+      "bytes": 150749,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/screenshots/pq-native-rpc-shows-native-81788-pinned-proof-only-on-demand-pq-rpc-mobile/finality.png",
+      "sha256": "0a95ca179ef6707dc63b4b1262a67ffd35720f4bcb0701972ed3bfa706579441",
+      "bytes": 202893,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/screenshots/pq-native-rpc-shows-native-81788-pinned-proof-only-on-demand-pq-rpc-desktop/finality.png",
+      "sha256": "57faf52e5df48cde15abe17cfac2b640eff0b377fbe4dbf4ce4010ad8134ab53",
+      "bytes": 56607,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-mobile/protocol.png",
+      "sha256": "bdbc3eb6031ae4a83474008af86670d3bda3eec87fffe9be444b5a9e7de66fa5",
+      "bytes": 583016,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-mobile/account.png",
+      "sha256": "8b171c379641818b2c160d871dcde4c82780496c7d57e1df21cec82bfebfc5d8",
+      "bytes": 469622,
+      "retention": "Local public artifact retained through 2026-11-14."
+    },
+    {
+      "path": "/Users/tomisetsu/.codex/artifacts/toscan-native-pq-rpc-20261015/native-localnet-validation.py",
+      "sha256": "8f826d11c0f72877ad6f01820dee7cf7f00037fe0cc09458ec64f4863366d17b",
+      "bytes": 3450,
+      "retention": "Local public artifact retained through 2026-11-14."
+    }
+  ],
+  "resource_boundaries": [
+    "Native typed reads: two active and eight queued per browser adapter.",
+    "Normal browser/query RPC responses: 16 MiB streamed JSON; explicit relay: 64 MiB JSON.",
+    "Query stores compact PQ counts/identities/context; home/network uses a five-second cached scalar summary.",
+    "No automatic PQ retry or background raw proof download."
+  ],
+  "process_cleanup": "Owned native localnets and isolated PostgreSQL instance stopped; existing user nodes and databases preserved."
+}

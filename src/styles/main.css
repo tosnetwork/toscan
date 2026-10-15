@@ -52,7 +52,7 @@
 }
 
 * { box-sizing: border-box; }
-html { min-width: 320px; background: var(--page); scroll-behavior: smooth; }
+html { min-width: 320px; background: var(--page); scroll-padding-top: 110px; }
 body { margin: 0; min-width: 320px; min-height: 100vh; color: var(--text); background: var(--page); font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
 button, input, select { color: inherit; font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
@@ -66,7 +66,7 @@ h1, h2, h3, p { margin-top: 0; }
 
 .container { width: min(calc(100% - 40px), var(--container)); margin-inline: auto; }
 .surface { background: var(--surface); border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); border-radius: var(--radius); }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.sr-only { position: absolute; top: 0; left: 0; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .skip-link { position: fixed; z-index: 1000; left: 16px; top: -60px; padding: 10px 16px; color: white; background: var(--accent); border-radius: 8px; transition: top 0.15s; }
 .skip-link:focus { top: 12px; }
 .icon { display: block; flex: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }

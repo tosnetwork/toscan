@@ -16,6 +16,8 @@ import {
   validatorRoundProgress,
   validatorRouteKey,
   validatorRows,
+  validatorIdentity,
+  signatureAlgorithm,
   type ValidatorSort,
 } from "@/utils/validators";
 
@@ -79,7 +81,7 @@ async function moveSetFocus(kind: "current" | "next"): Promise<void> {
           <div><small>Active validators</small><strong>{{ formatInteger(currentCount) }}</strong><span>{{ data.validator_set?.main ?? 0 }} masterchain validators</span></div>
           <div><small>{{ stakeLabel }}</small><strong>{{ formatTos(stakeValue) }}</strong><span>{{ staking?.current_election_available ? `${formatInteger(staking.current_participants)} election participants` : latestCycle ? `Election ${latestCycle.election_id}` : 'Elector evidence unavailable' }}</span></div>
           <div><small>Latest realized network APY</small><strong>{{ realizedApy }}</strong><span>{{ latestCycle ? `Completed election ${latestCycle.election_id}` : 'Awaiting a completed reward cycle' }}</span></div>
-          <div><small>Observed proof signatures</small><strong>{{ formatInteger(data.signatures.length) }}</strong><span>Masterchain block {{ formatInteger(data.observed_mc_seqno) }}</span></div>
+          <div><small>Observed proof signatures</small><strong>{{ data.signatures_available === false ? "—" : formatInteger(data.signature_count ?? data.signatures.length) }}</strong><span>Masterchain block {{ formatInteger(data.observed_mc_seqno) }}</span></div>
         </section>
 
         <section class="surface validator-round" aria-labelledby="validator-round-title">
@@ -105,13 +107,15 @@ async function moveSetFocus(kind: "current" | "next"): Promise<void> {
           <RouterLink to="/staking">See staking evidence <AppIcon name="chevron" :size="15" /></RouterLink>
         </section>
 
+        <aside v-if="data.signature_evidence" class="surface evidence-note"><strong>PQ finality verified by node</strong><p>Historical signer evidence is bound to masterchain #{{ data.signature_evidence.id.seqno }} and validator-set source #{{ data.signature_evidence.verification.validator_set_source.seqno }}. Current membership is separate; individual historical key attribution is not inferred.</p><RouterLink :to="{ name: 'block', params: { workchain: -1, shard: data.signature_evidence.id.shard, seqno: data.signature_evidence.id.seqno } }">View finality evidence and proof</RouterLink></aside>
+        <aside v-if="data.signatures_available === false" class="surface evidence-note"><strong>PQ signature evidence unavailable</strong><p>{{ data.signature_unavailable_reason }}. Membership and weights remain available from proved configuration; no zero-signature or independent verification claim is made.</p></aside>
         <section class="surface page-surface validator-directory">
           <header class="section-heading">
-            <div><h2>{{ setKind === 'current' ? 'Current validator set' : 'Next validator set' }}</h2><p>Public keys, ADNL identities and voting weights extracted from proved configuration cells</p></div>
+            <div><h2>{{ setKind === 'current' ? 'Current validator set' : 'Next validator set' }}</h2><p>Stable membership IDs, consensus keys, ADNL identities and voting weights extracted from proved configuration cells</p></div>
             <ExportButton
               :filename="`toscan-${setKind}-validators`"
-              :headers="['Canonical rank','Public key','ADNL','Role','Weight','Weight share','Cumulative weight']"
-              :rows="rows.map((row) => [row.rank,row.public_key,row.adnl_address,row.masterchain ? 'masterchain' : 'shard',row.weight,ratioPercent(row.weight,activeSet?.total_weight ?? '0'),row.cumulative_weight])"
+              :headers="['Canonical rank','Membership identity','Algorithm','Key ID','ADNL','Role','Weight','Weight share','Cumulative weight']"
+              :rows="rows.map((row) => [row.rank,validatorIdentity(row),signatureAlgorithm(row.algorithm_id),row.key_id ?? '',row.adnl_address,row.masterchain ? 'masterchain' : 'shard',row.weight,ratioPercent(row.weight,activeSet?.total_weight ?? '0'),row.cumulative_weight])"
             />
           </header>
 
@@ -122,26 +126,26 @@ async function moveSetFocus(kind: "current" | "next"): Promise<void> {
 
           <div id="validator-set-panel" role="tabpanel" :aria-labelledby="`validator-${setKind}-tab`">
             <div class="validator-toolbar">
-              <label class="validator-search"><AppIcon name="search" :size="16" /><span class="sr-only">Search validators</span><input v-model="query" type="search" placeholder="Search public key or ADNL" /></label>
-              <label class="select-control">Sort <select v-model="sort" aria-label="Sort validators"><option value="weight-desc">Weight, highest first</option><option value="weight-asc">Weight, lowest first</option><option value="identity-asc">Public key</option></select></label>
+              <label class="validator-search"><AppIcon name="search" :size="16" /><span class="sr-only">Search validators</span><input v-model="query" type="search" placeholder="Search identity, key ID or ADNL" /></label>
+              <label class="select-control">Sort <select v-model="sort" aria-label="Sort validators"><option value="weight-desc">Weight, highest first</option><option value="weight-asc">Weight, lowest first</option><option value="identity-asc">Membership identity</option></select></label>
               <label class="select-control">Rows <select v-model.number="pageSize" aria-label="Validators per page"><option :value="25">25</option><option :value="50">50</option><option :value="100">100</option></select></label>
             </div>
 
             <div class="data-table-wrap validator-table-wrap">
               <table class="data-table validator-table">
                 <caption class="sr-only">{{ setKind }} validator set</caption>
-                <thead><tr><th>Rank</th><th>Validator</th><th>ADNL</th><th>Role</th><th>Weight</th><th>Share</th><th><span class="sr-only">Actions</span></th></tr></thead>
+                <thead><tr><th>Rank</th><th>Validator</th><th>ADNL</th><th>Role</th><th>Signature suite</th><th>Weight</th><th>Share</th><th><span class="sr-only">Actions</span></th></tr></thead>
                 <tbody>
-                  <tr v-for="row in visibleRows" :key="row.public_key">
+                  <tr v-for="row in visibleRows" :key="validatorIdentity(row)">
                     <td><span class="validator-rank">{{ row.rank }}</span></td>
-                    <td><RouterLink class="mono validator-table-link" :to="{ name: 'validator', params: { publicKey: validatorRouteKey(row.public_key) } }">{{ compact(row.public_key, 16, 12) }}</RouterLink><small class="validator-cell-note">Proof-extracted public key</small></td>
+                    <td><RouterLink class="mono validator-table-link" :to="{ name: 'validator', params: { publicKey: validatorRouteKey(validatorIdentity(row)) } }">{{ compact(validatorIdentity(row), 16, 12) }}</RouterLink><small class="validator-cell-note">Stable membership identity</small></td>
                     <td class="mono">{{ compact(row.adnl_address, 12, 10) }}</td>
                     <td><StatusBadge :status="row.masterchain ? 'active' : 'shard'" /></td>
-                    <td class="mono">{{ formatInteger(row.weight) }}</td>
+                    <td>{{ signatureAlgorithm(row.algorithm_id) }}</td><td class="mono">{{ formatInteger(row.weight) }}</td>
                     <td><strong>{{ ratioPercent(row.weight, activeSet?.total_weight ?? '0').toFixed(2) }}%</strong></td>
-                    <td><div class="validator-row-actions"><CopyButton :value="row.public_key" label="validator public key" /><RouterLink :to="{ name: 'validator', params: { publicKey: validatorRouteKey(row.public_key) } }" :aria-label="`Open validator ${row.rank}`"><AppIcon name="chevron" :size="17" /></RouterLink></div></td>
+                    <td><div class="validator-row-actions"><CopyButton :value="validatorIdentity(row)" label="validator identity" /><RouterLink :to="{ name: 'validator', params: { publicKey: validatorRouteKey(validatorIdentity(row)) } }" :aria-label="`Open validator ${row.rank}`"><AppIcon name="chevron" :size="17" /></RouterLink></div></td>
                   </tr>
-                  <tr v-if="!visibleRows.length"><td colspan="7" class="inline-empty">{{ activeSet ? 'No validators match this search.' : 'No validator set has been published.' }}</td></tr>
+                  <tr v-if="!visibleRows.length"><td colspan="8" class="inline-empty">{{ activeSet ? 'No validators match this search.' : 'No validator set has been published.' }}</td></tr>
                 </tbody>
               </table>
             </div>

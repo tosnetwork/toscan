@@ -1,4 +1,6 @@
 import { HttpClient } from "./http";
+import { PqExplorer } from "./pqExplorer";
+import type { DecodedConfig } from "./pq";
 import { JsonRpcClient, TransportError } from "./jsonRpc";
 import type {
   AccountAgent,
@@ -67,6 +69,7 @@ import {
   previewTasks,
   previewTransactions,
 } from "@/data/preview";
+import { type AuthPolicy } from "@/utils/protocol";
 import { runtime } from "@/stores/runtime";
 
 const rpc = new JsonRpcClient({
@@ -74,8 +77,9 @@ const rpc = new JsonRpcClient({
   transport: import.meta.env.VITE_TOS_RPC_TRANSPORT || (import.meta.env.PROD ? "rest" : "json-rpc"),
   timeout: Number(import.meta.env.VITE_TOS_RPC_TIMEOUT_MS) || (import.meta.env.DEV ? 2_500 : 12_000),
 });
+export const pqExplorer = new PqExplorer(rpc);
 const serviceApi = new HttpClient(import.meta.env.VITE_TOS_SERVICE_API_URL || "/tos-service-api");
-const previewEnabled = import.meta.env.VITE_ENABLE_PREVIEW === "true" || import.meta.env.DEV;
+const previewEnabled = import.meta.env.VITE_ENABLE_PREVIEW === "true" || (import.meta.env.DEV && import.meta.env.VITE_ENABLE_PREVIEW !== "false");
 
 async function withPreview<T>(live: () => Promise<T>, preview: () => T | Promise<T>): Promise<T> {
   if (runtime.mode.value === "preview") return preview();
@@ -325,6 +329,15 @@ async function listLiveServices(limit = 100): Promise<Service[]> {
   return (await serviceApi.get<ListResponse<Service>>("/services", { limit })).result;
 }
 
+export async function getObservedSignatureCount(): Promise<{ signature_count: number | null; observed_mc_seqno: number }> {
+  const response = await serviceApi.get<{ result: { signature_count: number | null; observed_mc_seqno: number; signatures_available: boolean } }>("/explorer/validators/signature-summary");
+  const value = response.result;
+  if (!Number.isInteger(value.observed_mc_seqno) || value.observed_mc_seqno < 0 || value.observed_mc_seqno > 2147483647) throw new Error("Invalid indexed signature observation");
+  if (value.signatures_available === false) return { signature_count: null, observed_mc_seqno: value.observed_mc_seqno };
+  if (value.signature_count === null || !Number.isInteger(value.signature_count) || value.signature_count < 0 || value.signature_count > 400) throw new Error("Invalid indexed signature count");
+  return value;
+}
+
 export async function getHome(): Promise<HomeData> {
   return withPreview(async () => {
     const blocks = await getLiveRecentBlocks(6);
@@ -336,7 +349,7 @@ export async function getHome(): Promise<HomeData> {
       optional(getTasksPage(0, 3).then((value) => value.items), []),
       optional(getServicesPage(0, 3).then((value) => value.items), []),
       optional(rpc.call<{ consensus_block: number }>("getConsensusBlock"), { consensus_block: 0 }),
-      optional(rpc.call<{ signatures: unknown[] }>("getMasterchainBlockSignatures", { seqno: blocks[0]?.seqno }), { signatures: [] }),
+      optional<{ signature_count: number | null; observed_mc_seqno: number | null }>(getObservedSignatureCount(), { signature_count: null, observed_mc_seqno: null }),
     ]);
     return {
       blocks,
@@ -344,7 +357,8 @@ export async function getHome(): Promise<HomeData> {
       tasks,
       services,
       consensusBlock: consensus.consensus_block || null,
-      signers: signatures.signatures.length || null,
+      signers: signatures.signature_count,
+      signerBlock: signatures.observed_mc_seqno,
     };
   }, () => previewHome);
 }
@@ -743,7 +757,7 @@ export async function getValidatorDetail(publicKey: string): Promise<ValidatorDe
         next_set_valid_from: current.next_validator_set?.utime_since ?? null,
         next_set_valid_until: current.next_validator_set?.utime_until ?? null,
         latest_observed_mc_seqno: current.observed_mc_seqno,
-        observed_signature_count: current.signatures.length,
+        observed_signature_count: current.signature_count ?? current.signatures.length,
         selected_sets: history.length,
         first_observed_at: history.at(-1)?.observed_at ?? current.observed_at,
         last_observed_at: current.observed_at,
@@ -834,6 +848,37 @@ export async function getValidatorOverview(): Promise<ValidatorOverview> {
   }));
 }
 
+export interface NetworkSecurity {
+  block: BlockId;
+  globalId: number;
+  chainTime: number;
+  version: number;
+  capabilities: string;
+  authPolicy: AuthPolicy | null;
+  controllerCodes: string[] | null;
+  sizeLimits: DecodedConfig;
+}
+
+export async function getNetworkSecurity(): Promise<NetworkSecurity> {
+  if (runtime.mode.value === "preview") throw new Error("PQ evidence is unavailable in preview mode");
+  const block = await pqExplorer.observation();
+  // Two inspections at a time stay within the native default worker budget.
+  const global = await pqExplorer.config(8, block);
+  const [controllers, policy] = await Promise.all([pqExplorer.config(47, block), pqExplorer.config(48, block)]);
+  const limits = await pqExplorer.config(43, block);
+  for (const item of [controllers, policy, limits]) {
+    if (item.observation.global_id !== global.observation.global_id || item.observation.chain_time !== global.observation.chain_time || item.observation.vm_version !== global.observation.vm_version) throw new Error("Inconsistent configuration observation");
+  }
+  const value = global.value!, auth = policy.value;
+  return {
+    block, globalId: global.observation.global_id, chainTime: global.observation.chain_time,
+    version: Number(value.version), capabilities: String(value.capabilities),
+    authPolicy: auth ? { networkTag: String(auth.network_tag), sequence: String(auth.policy_sequence), retired: Number(auth.retired_flags), primaryDeadline: auth.primary_deadline as number | null, specHash: String(auth.policy_spec_hash) } : null,
+    controllerCodes: controllers.value ? controllers.value.controller_codes as string[] : null,
+    sizeLimits: limits,
+  };
+}
+
 export async function getGovernanceConfig(): Promise<GovernanceConfigProof> {
   const definitions = [
     { id: 0, name: "Configuration authority", description: "The account authorized to change network configuration." },
@@ -841,6 +886,9 @@ export async function getGovernanceConfig(): Promise<GovernanceConfigProof> {
     { id: 34, name: "Current validator set", description: "The validator-set cell currently governing consensus." },
     { id: 36, name: "Next validator set", description: "The elected next validator set, when one is committed." },
     { id: 40, name: "Misbehavior and slashing", description: "The chain configuration for validator punishment, when enabled." },
+    { id: 43, name: "Message and state limits", description: "Protocol limits affecting large post-quantum messages and contract state." },
+    { id: 47, name: "Validator controller policy", description: "Committed controller code allowlist; code identity alone does not prove deployed account authority." },
+    { id: 48, name: "Quantum AUTH policy", description: "Network namespace, policy sequence and daily authorization retirement schedule; mandatory at version 17+." },
   ];
   return withPreview(async () => {
     const info = await rpc.call<MasterchainInfo>("getMasterchainInfo");

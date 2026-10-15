@@ -1,7 +1,8 @@
+import nativeFixture from "../../../src/api/fixtures/pq-native.json";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
-import { CONTRACT_KINDS, Projector } from "./projector.js";
+import { CONTRACT_KINDS, Projector, unavailablePqSignatures } from "./projector.js";
 import type { TosRpc } from "./rpc.js";
 import type { DnsDomainHistoryItem, GovernanceSnapshot, ValidatorSetConfig, ValidatorSetSnapshot } from "./types.js";
 
@@ -84,6 +85,7 @@ describe("validator projection", () => {
     const current = validatorSet("current-key", 100);
     const next = validatorSet("next-key", 200);
     const rpc = {
+      blockId: async (_wc: number, _shard: string, seqno: number) => ({ ...nativeFixture.signature.id, seqno }),
       call: async (method: string, params: { param?: number }) => {
         if (method === "getConfigParam") return { validator_set: params.param === 34 ? current : next };
         return { signatures: [{ node_id_short: "proof-node", signature: "proof-signature" }] };
@@ -109,8 +111,9 @@ describe("validator projection", () => {
     const snapshots: ValidatorSetSnapshot[] = [];
     const current = validatorSet("current-key", 100);
     const rpc = {
+      blockId: async (_wc: number, _shard: string, seqno: number) => ({ ...nativeFixture.signature.id, seqno }),
       call: async (method: string, params: { param?: number }) => {
-        if (method === "getConfigParam" && params.param === 36) throw new Error("config parameter is absent");
+        if (method === "getConfigParam" && params.param === 36) throw new Error("getConfigParam failed (500): config param 36 not found");
         if (method === "getConfigParam") return { validator_set: current };
         return { signatures: [] };
       },
@@ -131,7 +134,7 @@ describe("governance projection", () => {
     const snapshots: GovernanceSnapshot[] = [];
     const rpc = {
       call: async (_method: string, params: { param?: number }) => {
-        if (params.param === 36) throw new Error("optional config absent");
+        if (params.param === 36) throw new Error("getConfigParam failed (500): config param 36 not found");
         return { config: { bytes: `cell-${params.param}` } };
       },
     } as unknown as TosRpc;
@@ -151,6 +154,9 @@ describe("governance projection", () => {
         { id: 34, bytes: "cell-34" },
         { id: 36, bytes: null },
         { id: 40, bytes: "cell-40" },
+        { id: 43, bytes: "cell-43" },
+        { id: 47, bytes: "cell-47" },
+        { id: 48, bytes: "cell-48" },
       ],
     });
   });
@@ -171,5 +177,56 @@ describe("governance projection", () => {
     await expect((projector as unknown as { syncGovernance(seqno: number): Promise<void> }).syncGovernance(80))
       .rejects.toThrow("proof unavailable");
     expect(snapshots).toHaveLength(0);
+  });
+});
+
+describe("PQ signature projection boundary", () => {
+  it("retains an explicit unsupported carrier without swallowing transport failures", () => {
+    expect(unavailablePqSignatures(new Error("getMasterchainBlockSignatures failed (500): post-quantum block signatures are not supported by JSON-RPC yet"))).toMatchObject({ signatures_available: false });
+    expect(() => unavailablePqSignatures(new Error("RPC timeout"))).toThrow("RPC timeout");
+  });
+});
+
+describe("PQ signature carrier projection", () => {
+  it("continues membership projection for the specific unsupported carrier and fails on RPC loss", async () => {
+    const snapshots: ValidatorSetSnapshot[] = [];
+    let failure = "getMasterchainBlockSignatures failed (500): post-quantum block signatures are not supported by JSON-RPC yet";
+    const member = { public_key: null, validator_id: "stable", key_id: "current", algorithm_id: 1, pq_public_key: "bytes", weight: "10" };
+    const rpc = { blockId: async (_wc: number, _shard: string, seqno: number) => ({ ...nativeFixture.signature.id, seqno }), call: async (method: string) => {
+      if (method === "getMasterchainBlockSignatures") throw new Error(failure);
+      return { validator_set: { ...validatorSet("old", 100), validators: [member] } };
+    } } as unknown as TosRpc;
+    const db = { recordValidatorSet: async (snapshot: ValidatorSetSnapshot) => { snapshots.push(snapshot); } } as unknown as ProjectionDb;
+    const projector = new Projector(db, rpc, new Metrics(), { sourceUrl: "http://source", batchSize: 1, pollMs: 1, contractSyncMs: 1 });
+    const sync = () => (projector as unknown as { syncValidators(seqno: number): Promise<void> }).syncValidators(100);
+    await sync();
+    expect(snapshots[0]).toMatchObject({ validator_set: { validators: [member] }, signatures_available: false });
+    failure = "getMasterchainBlockSignatures failed (503): timeout";
+    await expect(sync()).rejects.toThrow("timeout"); expect(snapshots).toHaveLength(1);
+  });
+});
+
+describe("versioned native PQ projection", () => {
+  it("retains stable identities and historical verification without attributing latest keys", async () => {
+    const snapshots: ValidatorSetSnapshot[] = [];
+    let proof = nativeFixture.signature;
+    const rpc = {
+      blockId: async () => nativeFixture.signature.id,
+      call: async (method: string) => method === "getMasterchainBlockSignatures" ? proof : { validator_set: validatorSet("unrelated-latest-key", 100) },
+    } as unknown as TosRpc;
+    const db = { recordValidatorSet: async (snapshot: ValidatorSetSnapshot) => snapshots.push(snapshot) } as unknown as ProjectionDb;
+    const projector = new Projector(db, rpc, new Metrics(), { sourceUrl: "http://source", batchSize: 1, pollMs: 1, contractSyncMs: 1 });
+    const sync = () => (projector as unknown as { syncValidators(seqno: number): Promise<void> }).syncValidators(proof.id.seqno);
+    await sync();
+    expect(snapshots[0]!.signature_evidence?.verification).toEqual(proof.verification);
+    expect(snapshots[0]!.signatures).toEqual([]);
+    expect(snapshots[0]!.signature_count).toBe(proof.signatures.length);
+    expect(snapshots[0]!.signature_payloads_retained).toBe(false);
+    expect(snapshots[0]!.signature_evidence?.signer_ids).toEqual(proof.signatures.map((s) => s.validator_id));
+    expect(JSON.stringify(snapshots[0])).not.toContain(proof.signatures[0]!.signature);
+    expect(snapshots[0]!.signature_evidence).not.toHaveProperty("public_key");
+    proof = { ...proof, id: { ...proof.id, file_hash: btoa("x".repeat(32)) } };
+    await expect(sync()).rejects.toThrow("Invalid PQ");
+    expect(snapshots).toHaveLength(1);
   });
 });

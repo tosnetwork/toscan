@@ -49,3 +49,12 @@ describe("validator list helpers", () => {
     expect(validatorRouteKey("preview-validator-1")).toBe("preview-validator-1");
   });
 });
+
+// PQ wire descriptors intentionally have no Ed25519 public_key.
+describe("PQ validator descriptors", () => {
+  it("searches and sorts stable membership IDs without dereferencing the null Ed25519 key", () => {
+    const pq = { ...set, validators: [{ public_key: null, validator_id: "stable-pq-member", key_id: "rotating-key", algorithm_id: 1, pq_public_key: "suite-key", adnl_address: "transport", weight: "10", cumulative_weight: "0" }] } as unknown as ValidatorSetConfig;
+    expect(filterAndSortValidators(validatorRows(pq), "stable-pq", "identity-asc")).toHaveLength(1);
+    expect(filterAndSortValidators(validatorRows(pq), "rotating-key", "weight-desc")).toHaveLength(1);
+  });
+});

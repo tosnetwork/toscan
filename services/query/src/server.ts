@@ -71,6 +71,10 @@ function hashCandidates(raw: string): string[] {
   return [...new Set(candidates)];
 }
 
+function matchesValidator(member: Record<string, unknown>, identity: string): boolean {
+  return member.validator_id === identity || member.public_key === identity;
+}
+
 function canonicalValidatorPublicKey(value: string): string {
   if (!/^[A-Za-z0-9_-]{43}$/.test(value)) return value;
   const decoded = Buffer.from(value, "base64url");
@@ -509,6 +513,29 @@ export function buildServer(
     } };
   });
 
+  type SignatureSummary = { observed_mc_seqno: number; signature_count: number | null; signatures_available: boolean };
+  let signatureSummaryCache: { until: number; value: SignatureSummary | null } | undefined;
+  let signatureSummaryRead: Promise<SignatureSummary | null> | undefined;
+  app.get("/explorer/validators/signature-summary", async (_request, reply) => {
+    if (!signatureSummaryCache || signatureSummaryCache.until <= Date.now()) {
+      signatureSummaryRead ??= db.pool.query<SignatureSummary>(
+        `SELECT observed_mc_seqno,
+          CASE WHEN (data->>'signatures_available')::boolean IS FALSE THEN NULL
+            ELSE COALESCE((data->>'signature_count')::integer,
+              jsonb_array_length(COALESCE(data->'signatures','[]'::jsonb))) END AS signature_count,
+          COALESCE((data->>'signatures_available')::boolean,true) AS signatures_available
+         FROM explorer_validator_sets ORDER BY observed_mc_seqno DESC LIMIT 1`,
+      ).then((result) => {
+        const value = result.rows[0] ?? null;
+        signatureSummaryCache = { until: Date.now() + 5_000, value };
+        return value;
+      }).finally(() => { signatureSummaryRead = undefined; });
+      await signatureSummaryRead;
+    }
+    if (!signatureSummaryCache?.value) return reply.code(503).send({ ok: false, error: { message: "validator projection has not completed" } });
+    return { ok: true, result: signatureSummaryCache.value };
+  });
+
   app.get("/explorer/validators", async (_request, reply) => {
     const [latest, overview, cycle] = await Promise.all([
       db.pool.query(
@@ -565,15 +592,15 @@ export function buildServer(
       ),
       db.pool.query("SELECT data FROM explorer_staking_overview WHERE singleton=true"),
     ]);
-    const history = sets.rows.flatMap((row) => {
+    const history: Array<Record<string, unknown> & { observed_mc_seqno: number; observed_at: number }> = sets.rows.flatMap((row) => {
       const snapshot = row.data as {
         observed_mc_seqno: number;
         observed_at: number;
         validator_set?: { total_weight?: string; validators?: Array<Record<string, unknown>> } | null;
         next_validator_set?: { total_weight?: string; validators?: Array<Record<string, unknown>> } | null;
       };
-      const currentMember = snapshot.validator_set?.validators?.find((candidate) => candidate.public_key === publicKey);
-      const nextMember = snapshot.next_validator_set?.validators?.find((candidate) => candidate.public_key === publicKey);
+      const currentMember = snapshot.validator_set?.validators?.find((candidate) => matchesValidator(candidate, publicKey));
+      const nextMember = snapshot.next_validator_set?.validators?.find((candidate) => matchesValidator(candidate, publicKey));
       const member = currentMember ?? nextMember;
       return member ? [{
         observed_mc_seqno: snapshot.observed_mc_seqno ?? row.observed_mc_seqno,
@@ -591,11 +618,16 @@ export function buildServer(
       validator_set?: { utime_until?: number; validators?: Array<Record<string, unknown>> } | null;
       next_validator_set?: { utime_since?: number; utime_until?: number; validators?: Array<Record<string, unknown>> } | null;
       signatures?: Array<Record<string, unknown>>;
+      signature_count?: number;
+      signatures_available?: boolean;
+      signature_unavailable_reason?: string;
     } | undefined;
-    const currentlySelected = Boolean(latest?.validator_set?.validators?.some((candidate) => candidate.public_key === publicKey));
-    const selectedForNextSet = Boolean(latest?.next_validator_set?.validators?.some((candidate) => candidate.public_key === publicKey));
+    const currentlySelected = Boolean(latest?.validator_set?.validators?.some((candidate) => matchesValidator(candidate, publicKey)));
+    const selectedForNextSet = Boolean(latest?.next_validator_set?.validators?.some((candidate) => matchesValidator(candidate, publicKey)));
     return { ok: true, result: {
-      public_key: publicKey,
+      identity: history[0]?.validator_id ?? history[0]?.public_key,
+      validator_id: history[0]?.validator_id ?? null,
+      public_key: history[0]?.public_key ?? null,
       current: history[0],
       currently_selected: currentlySelected,
       selected_for_next_set: selectedForNextSet,
@@ -603,7 +635,9 @@ export function buildServer(
       next_set_valid_from: latest?.next_validator_set?.utime_since ?? null,
       next_set_valid_until: latest?.next_validator_set?.utime_until ?? null,
       latest_observed_mc_seqno: latest?.observed_mc_seqno ?? history[0]?.observed_mc_seqno,
-      observed_signature_count: latest?.signatures?.length ?? 0,
+      observed_signature_count: latest?.signatures_available === false ? null : latest?.signature_count ?? latest?.signatures?.length ?? 0,
+      signatures_available: latest?.signatures_available ?? true,
+      signature_unavailable_reason: latest?.signature_unavailable_reason,
       selected_sets: history.length,
       first_observed_at: history.at(-1)?.observed_at ?? history[0]?.observed_at,
       last_observed_at: history[0]?.observed_at,

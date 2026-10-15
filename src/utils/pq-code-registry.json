@@ -1,0 +1,61 @@
+{
+  "sourceCommit": "d41eae93dbbcb2af730b4ff5015458794ef04cb1",
+  "contracts": [
+    {
+      "hash": "570a064f8cd152c32f2c8a5694e1807c39cfb54efabb7e1147552a3c907cc239",
+      "kind": "mldsa-module",
+      "name": "ML-DSA-44 authorization module",
+      "source": "crypto/smartcont/mldsa44-auth-module.fc",
+      "candidate": true
+    },
+    {
+      "hash": "ba9c43c7dd3e27ea6d1d8e54d960cfe81321718f071fcd9568ea09816b1def1c",
+      "kind": "mldsa-module",
+      "name": "ML-DSA-44 authorization module",
+      "source": "crypto/smartcont/mldsa44-auth-module.tol",
+      "candidate": true
+    },
+    {
+      "hash": "6eddb777521f31be62601bf978d73e68c5048e3ba76d535c59390b6976bcd918",
+      "kind": "falcon-module",
+      "name": "Falcon-512 padded authorization module",
+      "source": "crypto/smartcont/falcon512-auth-module.fc",
+      "candidate": true
+    },
+    {
+      "hash": "588bd879559ac592c6c475d9e7d82a14dbce411ca1530b404d151f583f38435e",
+      "kind": "falcon-module",
+      "name": "Falcon-512 padded authorization module",
+      "source": "crypto/smartcont/falcon512-auth-module.tol",
+      "candidate": true
+    },
+    {
+      "hash": "06203e98d4d8bf97b0cab37523ec435f5ab0e1d6d2c5253926eebf20ef1712f5",
+      "kind": "quantum-wallet",
+      "name": "Quantum Wallet",
+      "source": "crypto/smartcont/wallet-quantum-code.fc",
+      "candidate": true
+    },
+    {
+      "hash": "f818dd311152d6ea13ef7f38002eb6f7390fac06bbe5df71bb8a2dd0c09c5b6d",
+      "kind": "quantum-module",
+      "name": "Quantum Module",
+      "source": "crypto/smartcont/wallet-quantum-module.fc",
+      "candidate": true
+    },
+    {
+      "hash": "9fa07637d49c4176766847251cfd820d5a11ade70fe92a45e11e419dba0452a0",
+      "kind": "quantum-vault",
+      "name": "Quantum Vault",
+      "source": "crypto/smartcont/wallet-quantum-fee-vault.fc",
+      "candidate": true
+    },
+    {
+      "hash": "4415b51d8cd4984bf3748f8de3da443cc1f1e07e1408d5817edabbafccb03efa",
+      "kind": "pq-highload",
+      "name": "ML-DSA-44 highload wallet",
+      "source": "crypto/smartcont/pq-highload-wallet-code.fc",
+      "candidate": false
+    }
+  ]
+}
