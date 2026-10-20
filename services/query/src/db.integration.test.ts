@@ -1,3 +1,4 @@
+import { decodeNodeTokenData, decodeNodeTokenPositions } from "./nodeTokens.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
@@ -278,16 +279,18 @@ suite("PostgreSQL projection", () => {
   it("discovers assets and atomically refreshes owner positions", async () => {
     const owner = `0:${"99".repeat(32)}`;
     const master = `0:${"aa".repeat(32)}`;
-    await db.replaceAssetSnapshot(owner, [{
-      jetton_master: master, jetton_wallet: `0:${"bb".repeat(32)}`, last_lt: "700",
-    }], [], [{
+    await db.replaceAssetSnapshot(owner, decodeNodeTokenPositions({ tokens: [{
+      token_master: master, token_wallet: `0:${"bb".repeat(32)}`, last_lt: "700",
+    }] }), [], [{
       address: master, kind: "jetton", updated_at: 1_700_000_700,
-      data: { "@type": "ext.tokens.jettonMasterData", jetton_name: "Indexed Credit", total_supply: "1000" },
+      data: decodeNodeTokenData({ "@type": "ext.tokens.tokenMasterData", mintable: true, admin_address: "0:admin", token_content: "content-boc", token_wallet_code: "wallet-boc", token_name: "Indexed Credit", total_supply: "1000" }),
     }]);
     const app = buildServer(db, new Metrics());
     const listing = await app.inject("/explorer/assets?kind=jetton");
     expect(listing.statusCode).toBe(200);
     expect(listing.json().result[0]).toMatchObject({ address: master, holder_count: 1 });
+    const suggestions = await app.inject("/explorer/search/suggest?q=Indexed%20Credit");
+    expect(suggestions.json().result).toEqual(expect.arrayContaining([{ kind: "asset", title: "Indexed Credit", subtitle: "jetton", value: master, route: `/token/${master}` }]));
     const detail = await app.inject(`/explorer/assets/${encodeURIComponent(master)}`);
     expect(detail.json().result.holders[0]).toMatchObject({ owner_address: owner, last_lt: "700" });
     const holders = await app.inject(`/explorer/assets/${encodeURIComponent(master)}/holders`);

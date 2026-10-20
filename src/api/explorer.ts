@@ -1,3 +1,4 @@
+import { decodeNodeTokenData, decodeNodeTokenPositions } from "../../services/query/src/nodeTokens";
 import { HttpClient } from "./http";
 import { PqExplorer } from "./pqExplorer";
 import type { DecodedConfig } from "./pq";
@@ -34,7 +35,6 @@ import type {
   HomeData,
   GovernanceConfigProof,
   GovernanceSnapshot,
-  JettonPosition,
   ListResponse,
   MasterchainInfo,
   NetworkAnalytics,
@@ -912,7 +912,7 @@ export async function getAccount(address: string): Promise<AccountDetail> {
       optional(rpc.call<AccountCapability>("getAccountCapability", { address }), null),
       optional(rpc.call<{ agents: AccountAgent[] }>("getAccountAgents", { address }).then((value) => value.agents), []),
       optional(rpc.call<{ events: WalletEvent[] }>("getAccountEvents", { address, limit: 50 }).then((value) => value.events), []),
-      optional(rpc.call<{ jettons: JettonPosition[] }>("getAccountJettons", { address, limit: 100 }).then((value) => value.jettons), []),
+      optional(rpc.call<unknown>("getAccountTokens", { address, limit: 100 }), { tokens: [] }).then(decodeNodeTokenPositions),
       optional(rpc.call<{ nfts: NftPosition[] }>("getAccountNfts", { address, limit: 100 }).then((value) => value.nfts), []),
       optional(listIndexedTransactions(0, 50, address), {
         items: [], total: 0, offset: 0, limit: 50, complete: false,
@@ -973,7 +973,7 @@ export async function getSearchSuggestions(query: string, limit = 8): Promise<Ex
 
 export async function getToken(address: string, previewHint?: string): Promise<TokenData> {
   return withPreview(
-    () => rpc.call<TokenData>("getTokenData", { address }),
+    () => rpc.call<unknown>("getTokenData", { address }).then(decodeNodeTokenData),
     () => getPreviewToken(address, previewHint),
   );
 }

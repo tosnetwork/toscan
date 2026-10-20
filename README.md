@@ -114,7 +114,7 @@ Node reads include:
 - blocks: `getMasterchainInfo`, `lookupBlock`, `getBlockHeader`, `getBlockTransactions`, `getBlockTransactionsExt`;
 - transactions/accounts: `getTransactions`, `getAddressInformation`;
 - authority: `getAccountCapability`, `getAccountAgents`;
-- wallet index: `getAccountEvents`, `getAccountJettons`, `getAccountNfts`;
+- wallet index: `getAccountEvents`, `getAccountTokens`, `getAccountNfts`;
 - tokens: `getTokenData`;
 - finality and governance: `getConsensusBlock`, `getMasterchainBlockSignatures`, `getConfigParam`.
 
@@ -192,3 +192,13 @@ transport. Deploy it with a node exposing those versioned interfaces; old nodes
 show explicit unsupported evidence. Browser observations are not independent
 consensus verification. Raw proofs are fetched on demand; query snapshots retain compact PQ signer
 metadata, and home/network counters use a compact indexed summary.
+
+### Node token responses
+
+The node adapter uses `getAccountTokens`, `tokens`, `token_master`, `token_wallet`,
+`ext.tokens.tokenMasterData` and `token_*` metadata. Both the query service and the
+browser fallback translate these responses at the RPC boundary. The explorer's
+own stored payloads, position fields and API `kind: "jetton"` remain stable; no
+database or public explorer API migration is needed. Old node response shapes
+are rejected rather than interpreted as empty holdings. Deploy this adapter with
+the node release containing tosnetwork/tos#250.
