@@ -205,11 +205,8 @@ export interface GovernanceSnapshot {
   }>;
 }
 
-export interface JettonPosition {
-  jetton_master: string;
-  jetton_wallet: string;
-  last_lt: string;
-}
+// Stable explorer positions; node token_* fields are normalized at the RPC boundary.
+export type JettonPosition = import("./nodeTokens.js").ExplorerTokenPosition;
 
 export interface NftPosition {
   nft_item: string;

@@ -1,3 +1,4 @@
+import { NodeTokenResponseError } from "./nodeTokens.js";
 import { setTimeout as delay } from "node:timers/promises";
 import { ProjectionDb } from "./db.js";
 import { Metrics } from "./metrics.js";
@@ -233,7 +234,8 @@ export class Projector {
       const data = await this.rpc.tokenData(address);
       const kind = this.assetKind(data);
       return kind ? { address, kind, updated_at: Math.floor(Date.now() / 1000), data } : null;
-    } catch {
+    } catch (error) {
+      if (error instanceof NodeTokenResponseError) throw error;
       return null;
     }
   }
@@ -242,7 +244,7 @@ export class Projector {
     const accounts = await this.db.pendingAssetAccounts(this.options.assetScanBatch ?? 16);
     for (const owner of accounts) {
       const [jettons, nfts, direct] = await Promise.all([
-        this.rpc.accountJettons(owner),
+        this.rpc.accountTokens(owner),
         this.rpc.accountNfts(owner),
         this.optionalToken(owner),
       ]);
