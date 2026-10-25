@@ -25,7 +25,7 @@ describe("compiled fixture provenance", () => {
     for (const [name, source] of Object.entries(pairs)) {
       const entries = registry.contracts.filter((item) => item.source === source);
       expect(entries, source).toHaveLength(1);
-      expect(Cell.fromBase64(code[name as keyof typeof code]).hash().toString("hex"), name).toBe(entries[0].hash);
+      expect(Cell.fromBase64(code[name as keyof typeof code]).hash().toString("hex"), name).toBe(entries[0]?.hash);
     }
   });
 });
@@ -44,6 +44,15 @@ describe("public PQ account evidence", () => {
     const result = inspectAccountCryptography(code["pq-highload"], data);
     expect(result.status).toBe("known");
     expect(result.fields["Replay cleanup time"]).toBe("18446744073709551615");
+  });
+  it("decodes highload state written by the current contract after a real request", async () => {
+    const state = await import("./pq-highload-state-fixture.json");
+    const result = inspectAccountCryptography(code["pq-highload"], state.data);
+    expect(result.status).toBe("known");
+    expect(result.fields["Authorization algorithm"]).toBe("ML-DSA-44");
+    expect(result.fields["Public key"]).toHaveLength(2624);
+    expect(result.fields["Subwallet ID"]).toBe("7");
+    expect(result.fields["Timeout seconds"]).toBe("3600");
   });
   it("rejects wrong key lengths and refuses to classify unknown code by storage shape", () => {
     const short = boc(beginCell().storeInt(1, 32).storeRef(chain(1311)));

@@ -51,7 +51,7 @@
       "candidate": true
     },
     {
-      "hash": "4415b51d8cd4984bf3748f8de3da443cc1f1e07e1408d5817edabbafccb03efa",
+      "hash": "efece5d567608d25100d2cd5ac25d8053f09cc09cdcb81fc14763aaafed1d554",
       "kind": "pq-highload",
       "name": "ML-DSA-44 highload wallet",
       "source": "crypto/smartcont/pq-highload-wallet-code.fc",
