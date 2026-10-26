@@ -293,7 +293,8 @@
   "artifact_scope": "Files named before/targeted/final-targeted are historical reference-decoder runs; wire-after is current 37-test run. New card-capacity logs and live card-fix directory cover review correction. Child exit-2 is intentional SIGINT cleanup, not a failed chain probe.",
   "source_files": {
     "docs/native-pq-rpc.md": "3c7205ca57d238207e82e6d91d29edbc1fff64433093ebfae583b1de0f10b62e",
-    "docs/quantum-self-pay-observation.md": "299802cb63affa380334d01deb0f3ebd2c63ce54d9d50beddf044c0b834bdf55",
+    "docs/post-quantum-parity.md": "2316f8be7d41fb5f9a2a58e98a39ab83d7e89b9a752dbc159d84a4814ad51451",
+    "docs/quantum-self-pay-observation.md": "3351384f3b521f3d32b6a81b584c97a5a2d5d07a13a895f213d55a3423ecccf9",
     "e2e/pq-native-rpc.spec.ts": "440888abb2f5bfa7b725f3b1832673215d4797c0c70de77a337abbdc44f5da40",
     "scripts/verify-pq-localnet.ts": "677ed71aaae2bcc8f8652ae1b432c47b20a0fc9da169dc9d7d67415b465de166",
     "services/query/src/pq.ts": "8bbde2d36ddccc051847644a9e8e68dae627b397701f8bf5f4dfac33d2223495",
