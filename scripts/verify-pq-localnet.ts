@@ -11,7 +11,7 @@ const api = new PqExplorer(new JsonRpcClient({ endpoint, transport: "rest", time
 const rpc = new TosRpc({ baseUrl: endpoint, requestsPerSecond: 20 });
 const block = await api.observation();
 const global = await api.config(8, block);
-const [limits, controllers] = await Promise.all([api.config(43, block), api.config(47, block)]);
+const limits = await api.config(43, block);
 const policy = await api.config(48, block);
 const signatures = await api.signatures(block, process.env.TOSCAN_EXPORT_PROOF === "true");
 if (!signatures) throw new Error("Expected a PQ finality carrier on this disposable fixture");
@@ -39,6 +39,6 @@ if (process.env.TOSCAN_QUERY_ORIGIN) {
   if (!ready.ok) throw new Error(`Query not ready (${ready.status})`);
   queryReady = await ready.json();
 }
-const evidence = { observedAt: new Date().toISOString(), block, configs: [global, limits, controllers, policy], signatures, relay, pqMembers: members.validator_set.validators.length, queryReady, accounts, scope: "Node-verified public observations; not independent browser verification, account admission or production acceptance." };
+const evidence = { observedAt: new Date().toISOString(), block, configs: [global, limits, policy], signatures, relay, pqMembers: members.validator_set.validators.length, queryReady, accounts, scope: "Node-verified public observations; not independent browser verification, account admission or production acceptance." };
 const output = process.argv[2]; if (output) await writeFile(output, JSON.stringify(evidence, null, 2) + "\n");
 console.log(JSON.stringify({ block: block.seqno, version: global.observation.vm_version, pqMembers: evidence.pqMembers, signatureEvidence: "node_verified", accounts: Object.keys(accounts), relayBytes: Buffer.from(relay.reply, "base64").length, output: output ?? null }));

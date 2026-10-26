@@ -155,7 +155,6 @@ describe("governance projection", () => {
         { id: 36, bytes: null },
         { id: 40, bytes: "cell-40" },
         { id: 43, bytes: "cell-43" },
-        { id: 47, bytes: "cell-47" },
         { id: 48, bytes: "cell-48" },
       ],
     });

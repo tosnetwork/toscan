@@ -25,7 +25,7 @@ function keyChain(cell: Cell, expected: number): string {
     cell = s.loadRef(); s.endParse();
   }
 }
-function quantumModule(data: Cell): Record<string, string> {
+function quantumAuthority(data: Cell): Record<string, string> {
   const s = data.beginParse();
   requireValue(s.loadUint(8) === 1);
   const globalId = s.loadInt(32).toString();
@@ -62,7 +62,19 @@ export function inspectAccountCryptography(code: string, data: string): AccountC
       s.loadMaybeRef(); s.loadMaybeRef();
       result.fields["Replay cleanup time"] = s.loadUintBig(64).toString();
       result.fields["Timeout seconds"] = s.loadUint(22).toString(); s.endParse();
-    } else if (match.kind === "quantum-module") result.fields = quantumModule(cell);
+    } else if (match.kind === "quantum-self-pay") {
+      requireValue(s.loadUint(8) === 1);
+      result.fields["Sequence number"] = s.loadUint(32).toString();
+      result.fields["Wallet ID"] = s.loadUint(32).toString();
+      const retired = s.loadUint(16);
+      requireValue((retired & ~2) === 0);
+      result.fields["Retirement flags"] = retired.toString();
+      for (const name of ["Authority epoch", "Primary nonce", "Rescue nonce"]) result.fields[name] = s.loadUintBig(64).toString();
+      const authority = s.loadRef(); s.endParse();
+      Object.assign(result.fields, quantumAuthority(authority));
+      result.fields["Authority hash"] = authority.hash().toString("hex");
+      result.fields["Fee payment"] = "Wallet balance (self-pay)";
+    } else if (match.kind === "quantum-module") result.fields = quantumAuthority(cell);
     else if (match.kind === "quantum-wallet") {
       requireValue(s.loadUint(1) === 0);
       result.fields["Sequence number"] = s.loadUint(32).toString();
@@ -76,7 +88,7 @@ export function inspectAccountCryptography(code: string, data: string): AccountC
       requireValue(module.remainingBits === 5 && module.loadUint(5) === 6);
       const moduleCode = module.loadRef();
       requireValue(moduleCode.hash().toString("hex") === registry.contracts.find((item) => item.kind === "quantum-module")?.hash);
-      Object.assign(result.fields, quantumModule(module.loadRef())); module.endParse();
+      Object.assign(result.fields, quantumAuthority(module.loadRef())); module.endParse();
       result.fields["Module StateInit identity"] = witness.hash().toString("hex");
       const fee = auth.loadRef().beginParse(); auth.endParse();
       requireValue(fee.loadUint(8) === 1 && fee.loadUint(8) === 1);

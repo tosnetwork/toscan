@@ -15,9 +15,9 @@ function client(handler: (method: string, params: Record<string, unknown>) => un
   return { api: new PqExplorer(new JsonRpcClient({ endpoint: "/rpc", fetch: fetcher })), fetcher };
 }
 describe("native PQ wire evidence", () => {
-  it("accepts real native signatures, all six account schemas and both networks' policies", () => {
+  it("accepts real native signatures, all seven account schemas and both networks' policies", () => {
     expect(pqSignatures(signature, block, true).signatures).toHaveLength(signature.signatures.length);
-    expect(fixture.accounts).toHaveLength(8);
+    expect(fixture.accounts).toHaveLength(9);
     for (const auth of fixture.accounts) expect(publicAuthorization(auth, masterBlock(auth.observed_masterchain_block))).toEqual(auth);
     for (const config of fixture.configs) expect(decodedConfig(config, config.param, masterBlock(config.observation.block_id))).toEqual(config);
   });
@@ -45,6 +45,14 @@ describe("native PQ wire evidence", () => {
     expect(() => publicAuthorization({ ...auth, state_schema: "unrecognized" }, auth.observed_masterchain_block)).toThrow();
     expect(() => publicAuthorization({ ...auth, public_state: {} }, auth.observed_masterchain_block)).toThrow();
     expect(() => publicAuthorization({ ...auth, recognition: "unknown_code" }, auth.observed_masterchain_block)).toThrow();
+  });
+  it("enforces the complete self-pay wire layout without a fee signer", () => {
+    const auth = fixture.accounts.find((a) => a.code_family === "quantum_self_pay_v1")!;
+    expect(auth.public_state?.authority_epoch).toBe("18446744073709551615");
+    expect(auth.public_state?.fee_payment).toBe("wallet_balance");
+    for (const patch of [{ retired_flags: 1 }, { retired_flags: "2" }, { authority_epoch: "18446744073709551616" }, { primary_nonce: 42 }, { fee_payment: "vault" }, { fee: {} }, { authority_hash: "AA==" }, { primary: { algorithm_id: 1, public_key: "AA==" } }, { rescue: { algorithm_id: 3, public_key: btoa("x".repeat(32)), policy: "unknown" } }]) {
+      expect(() => publicAuthorization({ ...auth, public_state: { ...auth.public_state, ...patch } }, auth.observed_masterchain_block)).toThrow();
+    }
   });
   it("checks native size defaults, policy profile, retirement time and mandatory absence", () => {
     const limits = fixture.configs.find((c) => c.param === 43)!;

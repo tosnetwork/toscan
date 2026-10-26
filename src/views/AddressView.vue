@@ -47,7 +47,7 @@ const fingerprint = computed(() => data.value ? JSON.stringify([data.value.info.
         </section>
         <AccountCryptography :address="address" />
         <section class="account-metrics">
-          <div class="surface"><small>Account model</small><strong>{{ data.capability?.account_model ?? "Standard account" }}</strong><span>{{ data.capability?.wallet_type ?? data.info.state }}</span></div>
+          <div class="surface"><small>Account model</small><strong>{{ data.capability?.account_model ?? "Classification unavailable" }}</strong><span>{{ data.capability?.wallet_type ?? data.info.state }}</span></div>
           <div class="surface"><small>Last transaction LT</small><strong class="mono">{{ compact(data.info.last_transaction_id.lt, 10, 5) }}</strong><span>{{ compact(data.info.last_transaction_id.hash) }}</span></div>
           <div class="surface"><small>Agent authorities</small><strong>{{ formatInteger(data.capability?.agent_count ?? data.agents.length) }}</strong><span>{{ data.capability?.supports_agents ? "Capability enabled" : "No agent extension" }}</span></div>
           <div class="surface"><small>Assets indexed</small><strong>{{ data.jettons.length + data.nfts.length }}</strong><span>{{ data.jettons.length }} jettons · {{ data.nfts.length }} NFTs</span></div>

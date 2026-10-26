@@ -1,6 +1,14 @@
 {
-  "sourceCommit": "d41eae93dbbcb2af730b4ff5015458794ef04cb1",
+  "sourceCommit": "1cef5d3ecddb874f36b027b5eebb9918e34a8cdf",
   "contracts": [
+    {
+      "hash": "4f4d4d55622992eeee9b4db05c2b447ca05d9c49e6ad5d027c7f9b16d759b93b",
+      "kind": "quantum-self-pay",
+      "name": "Quantum self-pay wallet",
+      "source": "crypto/smartcont/wallet-quantum-self-pay.fc",
+      "sourceCommit": "1aa8821c0c208d09796b897b158c45203c99da51",
+      "candidate": true
+    },
     {
       "hash": "570a064f8cd152c32f2c8a5694e1807c39cfb54efabb7e1147552a3c907cc239",
       "kind": "mldsa-module",
@@ -30,7 +38,7 @@
       "candidate": true
     },
     {
-      "hash": "06203e98d4d8bf97b0cab37523ec435f5ab0e1d6d2c5253926eebf20ef1712f5",
+      "hash": "18252490f90f12149832b6067ca60f3f0216f23a97d71e7afcd8017eeb75e61f",
       "kind": "quantum-wallet",
       "name": "Quantum Wallet",
       "source": "crypto/smartcont/wallet-quantum-code.fc",
@@ -51,7 +59,7 @@
       "candidate": true
     },
     {
-      "hash": "4415b51d8cd4984bf3748f8de3da443cc1f1e07e1408d5817edabbafccb03efa",
+      "hash": "efece5d567608d25100d2cd5ac25d8053f09cc09cdcb81fc14763aaafed1d554",
       "kind": "pq-highload",
       "name": "ML-DSA-44 highload wallet",
       "source": "crypto/smartcont/pq-highload-wallet-code.fc",

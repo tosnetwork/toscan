@@ -69,7 +69,7 @@ export function decodeControllerPolicy(encoded: string): string[] {
 
 export const PQ_VM_SUITES = [
   { id: 1, name: "ML-DSA-44", role: "Consensus and daily authorization", minimumVersion: 16 },
-  { id: 2, name: "Falcon-512 padded", role: "Candidate authorization verifier", minimumVersion: 19 },
+  { id: 2, name: "Falcon-512 padded", role: "Candidate authorization verifier", minimumVersion: 16 },
   { id: 3, name: "SLH-DSA-SHA2-128s", role: "Rescue authorization verifier", minimumVersion: 16 },
   { id: 4, name: "HSS/LMS H20/W4", role: "Stateful fee verification", minimumVersion: 16 },
 ] as const;

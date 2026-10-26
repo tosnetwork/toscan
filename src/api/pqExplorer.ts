@@ -36,7 +36,7 @@ export class PqExplorer {
     if (withProof && !auth.proof) throw new Error("Missing requested account proof");
     return auth;
   }
-  async config(param: 8 | 43 | 47 | 48, block: BlockId): Promise<DecodedConfig> {
+  async config(param: 8 | 43 | 48, block: BlockId): Promise<DecodedConfig> {
     block = masterBlock(block);
     const result = await this.request<{ block_id?: unknown; decoded?: unknown }>("getConfigParam", {
       param, block_id: block, include_decoded: true, with_proof: false,

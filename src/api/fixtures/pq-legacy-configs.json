@@ -1,0 +1,255 @@
+{
+  "scope": "Historical native configurations. VM16 missing CP48 and retired CP47 are rejected by the current protocol codec. Not observations from the current node.",
+  "native_rpc_commit": "549212a227323eb3d21f0e9b06aec4dc2663582f",
+  "original_fixture_sha256": "6de38b44636c179ef580557d16464c58895acae48ed437fe28915280c242fdd4",
+  "configs": [
+    {
+      "schema_version": 1,
+      "param": 8,
+      "presence": "present",
+      "observation": {
+        "block_id": {
+          "@type": "tos.blockIdExt",
+          "workchain": -1,
+          "shard": "-9223372036854775808",
+          "seqno": 5,
+          "root_hash": "XUw6RnO+JevC7Vulakuy2M9G58wOhAwWfiVD9q7JuTI=",
+          "file_hash": "nv0lDchEhhVY+4g+t+sjrWd9DeI+kW/FxnEshpHOyZU="
+        },
+        "global_id": 1,
+        "chain_time": 1792023111,
+        "vm_version": 18
+      },
+      "value": {
+        "kind": "global_version",
+        "version": 18,
+        "capabilities": "494"
+      }
+    },
+    {
+      "schema_version": 1,
+      "param": 43,
+      "presence": "absent",
+      "observation": {
+        "block_id": {
+          "@type": "tos.blockIdExt",
+          "workchain": -1,
+          "shard": "-9223372036854775808",
+          "seqno": 5,
+          "root_hash": "XUw6RnO+JevC7Vulakuy2M9G58wOhAwWfiVD9q7JuTI=",
+          "file_hash": "nv0lDchEhhVY+4g+t+sjrWd9DeI+kW/FxnEshpHOyZU="
+        },
+        "global_id": 1,
+        "chain_time": 1792023111,
+        "vm_version": 18
+      },
+      "value": {
+        "kind": "size_limits",
+        "wire_version": null,
+        "configured": null,
+        "effective": {
+          "max_msg_bits": 2097152,
+          "max_msg_cells": 8192,
+          "max_library_cells": 1000,
+          "max_vm_data_depth": 512,
+          "max_ext_msg_size": 65535,
+          "max_ext_msg_depth": 512,
+          "max_acc_state_cells": 65536,
+          "max_mc_acc_state_cells": 2048,
+          "max_acc_public_libraries": 256,
+          "defer_out_queue_size_limit": 256,
+          "max_msg_extra_currencies": 2,
+          "max_acc_fixed_prefix_length": 8,
+          "acc_state_cells_for_storage_dict": 26,
+          "max_transaction_library_loads": null,
+          "max_total_msg_bits": 5242880,
+          "max_total_msg_cells": 20480
+        },
+        "defaulted_fields": [
+          "max_msg_bits",
+          "max_msg_cells",
+          "max_library_cells",
+          "max_vm_data_depth",
+          "max_ext_msg_size",
+          "max_ext_msg_depth",
+          "max_acc_state_cells",
+          "max_mc_acc_state_cells",
+          "max_acc_public_libraries",
+          "defer_out_queue_size_limit",
+          "max_msg_extra_currencies",
+          "max_acc_fixed_prefix_length",
+          "acc_state_cells_for_storage_dict",
+          "max_transaction_library_loads",
+          "max_total_msg_bits",
+          "max_total_msg_cells"
+        ]
+      }
+    },
+    {
+      "schema_version": 1,
+      "param": 47,
+      "presence": "absent",
+      "observation": {
+        "block_id": {
+          "@type": "tos.blockIdExt",
+          "workchain": -1,
+          "shard": "-9223372036854775808",
+          "seqno": 5,
+          "root_hash": "XUw6RnO+JevC7Vulakuy2M9G58wOhAwWfiVD9q7JuTI=",
+          "file_hash": "nv0lDchEhhVY+4g+t+sjrWd9DeI+kW/FxnEshpHOyZU="
+        },
+        "global_id": 1,
+        "chain_time": 1792023111,
+        "vm_version": 18
+      },
+      "value": null
+    },
+    {
+      "schema_version": 1,
+      "param": 48,
+      "presence": "present",
+      "observation": {
+        "block_id": {
+          "@type": "tos.blockIdExt",
+          "workchain": -1,
+          "shard": "-9223372036854775808",
+          "seqno": 5,
+          "root_hash": "XUw6RnO+JevC7Vulakuy2M9G58wOhAwWfiVD9q7JuTI=",
+          "file_hash": "nv0lDchEhhVY+4g+t+sjrWd9DeI+kW/FxnEshpHOyZU="
+        },
+        "global_id": 1,
+        "chain_time": 1792023111,
+        "vm_version": 18
+      },
+      "value": {
+        "kind": "auth_policy_v1",
+        "network_tag": "QkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkI=",
+        "policy_sequence": "0",
+        "retired_flags": 0,
+        "primary_deadline": null,
+        "policy_spec_hash": "XkOArtyV+Mty3lX3UG3gJptHwDrR0e0OUYTDMlRCYsA=",
+        "primary_status": "not_retired"
+      }
+    },
+    {
+      "schema_version": 1,
+      "param": 8,
+      "presence": "present",
+      "observation": {
+        "block_id": {
+          "@type": "tos.blockIdExt",
+          "workchain": -1,
+          "shard": "-9223372036854775808",
+          "seqno": 4,
+          "root_hash": "rV5TgZmmzCzleRWqF4hlufO2cdUBruA7e13AHVt+0To=",
+          "file_hash": "VGavUH+X7R0svCFnDErsPSNvOFl8fyyPJw+r/FGhaoY="
+        },
+        "global_id": 3,
+        "chain_time": 1792023153,
+        "vm_version": 16
+      },
+      "value": {
+        "kind": "global_version",
+        "version": 16,
+        "capabilities": "494"
+      }
+    },
+    {
+      "schema_version": 1,
+      "param": 43,
+      "presence": "absent",
+      "observation": {
+        "block_id": {
+          "@type": "tos.blockIdExt",
+          "workchain": -1,
+          "shard": "-9223372036854775808",
+          "seqno": 4,
+          "root_hash": "rV5TgZmmzCzleRWqF4hlufO2cdUBruA7e13AHVt+0To=",
+          "file_hash": "VGavUH+X7R0svCFnDErsPSNvOFl8fyyPJw+r/FGhaoY="
+        },
+        "global_id": 3,
+        "chain_time": 1792023153,
+        "vm_version": 16
+      },
+      "value": {
+        "kind": "size_limits",
+        "wire_version": null,
+        "configured": null,
+        "effective": {
+          "max_msg_bits": 2097152,
+          "max_msg_cells": 8192,
+          "max_library_cells": 1000,
+          "max_vm_data_depth": 512,
+          "max_ext_msg_size": 65535,
+          "max_ext_msg_depth": 512,
+          "max_acc_state_cells": 65536,
+          "max_mc_acc_state_cells": 2048,
+          "max_acc_public_libraries": 256,
+          "defer_out_queue_size_limit": 256,
+          "max_msg_extra_currencies": 2,
+          "max_acc_fixed_prefix_length": 8,
+          "acc_state_cells_for_storage_dict": 26,
+          "max_transaction_library_loads": null,
+          "max_total_msg_bits": 5242880,
+          "max_total_msg_cells": 20480
+        },
+        "defaulted_fields": [
+          "max_msg_bits",
+          "max_msg_cells",
+          "max_library_cells",
+          "max_vm_data_depth",
+          "max_ext_msg_size",
+          "max_ext_msg_depth",
+          "max_acc_state_cells",
+          "max_mc_acc_state_cells",
+          "max_acc_public_libraries",
+          "defer_out_queue_size_limit",
+          "max_msg_extra_currencies",
+          "max_acc_fixed_prefix_length",
+          "acc_state_cells_for_storage_dict",
+          "max_transaction_library_loads",
+          "max_total_msg_bits",
+          "max_total_msg_cells"
+        ]
+      }
+    },
+    {
+      "schema_version": 1,
+      "param": 47,
+      "presence": "absent",
+      "observation": {
+        "block_id": {
+          "@type": "tos.blockIdExt",
+          "workchain": -1,
+          "shard": "-9223372036854775808",
+          "seqno": 4,
+          "root_hash": "rV5TgZmmzCzleRWqF4hlufO2cdUBruA7e13AHVt+0To=",
+          "file_hash": "VGavUH+X7R0svCFnDErsPSNvOFl8fyyPJw+r/FGhaoY="
+        },
+        "global_id": 3,
+        "chain_time": 1792023153,
+        "vm_version": 16
+      },
+      "value": null
+    },
+    {
+      "schema_version": 1,
+      "param": 48,
+      "presence": "absent",
+      "observation": {
+        "block_id": {
+          "@type": "tos.blockIdExt",
+          "workchain": -1,
+          "shard": "-9223372036854775808",
+          "seqno": 4,
+          "root_hash": "rV5TgZmmzCzleRWqF4hlufO2cdUBruA7e13AHVt+0To=",
+          "file_hash": "VGavUH+X7R0svCFnDErsPSNvOFl8fyyPJw+r/FGhaoY="
+        },
+        "global_id": 3,
+        "chain_time": 1792023153,
+        "vm_version": 16
+      },
+      "value": null
+    }
+  ]
+}

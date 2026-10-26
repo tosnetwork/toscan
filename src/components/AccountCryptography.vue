@@ -35,7 +35,7 @@ const fields = computed(() => {
       if (item && typeof item === "object" && !Array.isArray(item)) visit(item as Record<string, unknown>, `${name} / `);
       else {
         const algorithms: Record<number, string> = { 1: "ML-DSA-44", 2: "Falcon-512 padded", 3: "SLH-DSA-SHA2-128s", 4: "Stateful HSS/LMS H20/W4" };
-        const display = key === "algorithm_id" ? algorithms[Number(item)] ?? String(item) : key === "legacy_signature_enabled" && item === false ? "Disabled; inert V5 field is zero" : item === null ? "Not set" : String(item);
+        const display = key === "algorithm_id" ? algorithms[Number(item)] ?? String(item) : key === "fee_payment" && item === "wallet_balance" ? "Wallet balance (self-pay)" : key === "legacy_signature_enabled" && item === false ? "Disabled; inert V5 field is zero" : item === null ? "Not set" : String(item);
         output.push({ name, value: display });
       }
     }

@@ -1,15 +1,18 @@
 {
-  "scope": "Public loopback three-validator native RPC responses. Fixture shape/binding tests do not independently verify signatures. Proof bytes are public. No private keys.",
-  "native_rpc_commit": "549212a227323eb3d21f0e9b06aec4dc2663582f",
-  "fixture_sha256": "6de38b44636c179ef580557d16464c58895acae48ed437fe28915280c242fdd4",
+  "scope": "Public native three-validator RPC observations at VM16, candidate namespace42 and ordinary namespace43. Proofs are node-verified; browser shape checks do not independently verify signatures. No private keys. Historical configurations are separately labelled.",
+  "native_rpc_commit": "7405aeebfede3dce8dec6f090585e67c6a808b97",
+  "harness_sha256": "ca842e88d12df6d9b9ade057cea4760eaf1b23e006ac66b056804821ecb98a1c",
+  "fixture_sha256": "4d83478219d327a47a24760119f126a15d149fa9abc23d05c7eff7b9872d90b1",
   "source_receipts": [
     {
-      "name": "get-v18-rpc-evidence.json",
-      "sha256": "df7c134d4d61f032f280ce5ec8556c126bed35c8b2f5846cb0251e4da29a4fc4"
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/pr312-rpc-final-candidate/attempt-1793017497488229000/rpc-evidence.json",
+      "sha256": "474e3255c7c3fbedccaa90e539d82eb5422cd5558c34d06cbed90035db986fbe",
+      "size": 333774
     },
     {
-      "name": "get-v16-rpc-evidence.json",
-      "sha256": "5d543426bce5e45341b3edb169842704a987b456294a6313f5f82171e4637794"
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/pr312-rpc-final-ordinary/attempt-1793017507414752000/rpc-evidence.json",
+      "sha256": "87065567ac4eea3ec1813c6d72ccea29d299eddfe997c5d75ec2c39baf03e2fa",
+      "size": 135868
     }
   ]
 }
