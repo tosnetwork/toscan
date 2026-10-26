@@ -1,0 +1,178 @@
+{
+  "scope": "Native read-only public explorer metadata and browser rendering. Not signed deployment/payment/rescue/migration or PostgreSQL query readiness.",
+  "base_commit": "847819e8403c1b8addf99993ab24daf9d7e52f38",
+  "native_binary_source": "7405aeebfede3dce8dec6f090585e67c6a808b97",
+  "harness_commit": "594d546a9589092bf58f7ddefe58c4a1df1ca4e3",
+  "results": {
+    "targeted_pass": 37,
+    "full_unit_pass": 88,
+    "database_integration_skipped": 21,
+    "live_browser_pass": 8,
+    "native_probe_exit": 0,
+    "retirement_mutant_exit": 1,
+    "restored_exit": 0
+  },
+  "retention": "At least until the full mobile-wallet handoff is accepted. Local retained paths are required to audit raw receipts.",
+  "artifacts": [
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-before.log",
+      "size": 4741,
+      "sha256": "f38ffb9c3bd295ad82323535cf6040cec9f21c6efb1fbce0a4dc096ab5373261"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-build.log",
+      "size": 6761,
+      "sha256": "a53b5bbe8109909ce252da15196d17fb71422f11a4ce4494cc26dc4db0e62c9a"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-checks.json",
+      "size": 524,
+      "sha256": "6f1bb4978e18bc30ad8275936e4d2e7244d6a21fad0f33e77dd6251c5af8aa62"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-deps-missing.log",
+      "size": 78,
+      "sha256": "98bb9c43567b6fc10e95ef62af360f83a4a555098e4d5c4f79f95e728e1a8724"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-final-targeted.log",
+      "size": 223,
+      "sha256": "1e20d658d71cbdc2cb3814f8a714aeae48809e4ddbd72e50fc599c9c1cfafeab"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-install.log",
+      "size": 1190,
+      "sha256": "9dfb115c1828e70c453763f72168ced95a153d39ced96f2120acf17187dd80df"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-lint.log",
+      "size": 106,
+      "sha256": "25fe8f2f66711ba1ed467ca846f5bd8ff4b4780962d2f88e2216cb05a8d7d467"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/browser.log",
+      "size": 16546,
+      "sha256": "d896e1eb7effb719478945abbd4ec25ba929127f6166550037e057f43b48894f"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/network-exit.json",
+      "size": 13,
+      "sha256": "97485f1a5636fc208dd63d060c878cfb2766c9cd055c05f66cc9d40271e58624"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/probe.json",
+      "size": 111919,
+      "sha256": "4a2d8c328e853482e9f665810358e80f0079bb73f4ba6cb2e49843a387329351"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/probe.log",
+      "size": 384,
+      "sha256": "72bd84a70493bc9bfb669504aa079fd9b4ceb6518fb364bcb62a406e1e5fa542"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/results.json",
+      "size": 384,
+      "sha256": "d5fbf3ab9be09f0c353ffd684e7375de2936405bdf461312907a8dbd109c0eac"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/screenshots/pq-native-rpc-shows-native-81788-pinned-proof-only-on-demand-pq-rpc-desktop/finality.png",
+      "size": 56466,
+      "sha256": "c6e55af35c4d1ec6004216cae7d7c3095887a0650cfa5c417960025c161d0e6d"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/screenshots/pq-native-rpc-shows-native-81788-pinned-proof-only-on-demand-pq-rpc-mobile/finality.png",
+      "size": 204187,
+      "sha256": "4a274842d48450427086e6954204692d6b46cb30255fb1dda7479d237f669ba6"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-desktop/account.png",
+      "size": 151552,
+      "sha256": "cfb413d2692c28bff9f5ab0670d6764df9d0c30b31a0a7d401d8e07e69267d41"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-desktop/protocol.png",
+      "size": 187712,
+      "sha256": "9dcbea3be8cda22fe5bd3e4c2432d929dc6df51d84d39d706c3c8ec1937a75a4"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-mobile/account.png",
+      "size": 468653,
+      "sha256": "ed15fd2764984fe35726b919857284d2916d97c3ebe62d558fa2174a293b4ebe"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-mobile/protocol.png",
+      "size": 580377,
+      "sha256": "9532ec06e6247d4bac7241e74b52fe354dcf25102fff6826d358a99068e3867e"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/screenshots/pq-native-rpc-shows-self-p-83521-ts-its-native-account-proof-pq-rpc-desktop/self-pay-account.png",
+      "size": 112756,
+      "sha256": "9e4d45c3c0155617aba571bdf2325cc7238ef1f877cd0f09c141d3406059c0a9"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-live/screenshots/pq-native-rpc-shows-self-p-83521-ts-its-native-account-proof-pq-rpc-mobile/self-pay-account.png",
+      "size": 347432,
+      "sha256": "1cc752d6eb15525bc0156858645fcbae8538ea5ce69c45f35c8c8836262e1b5e"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-mutation-receipt.json",
+      "size": 134,
+      "sha256": "16c52fe486b5fa2bb0e24db8257571d6451d5a456734976ca2212cccda8ebca3"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-query-build.log",
+      "size": 123,
+      "sha256": "89edf54ddaf3ddd69f5c24fc96ecb6dd963e0c44eab4e324366f8cb11a43eec8"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-query-typecheck.log",
+      "size": 136,
+      "sha256": "7a0a6852b0a807c5d68608bc3021e8b71f42ef5f02bad48666812ac423a25f56"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-restored.log",
+      "size": 221,
+      "sha256": "2de413c3295a199fcd58d446e00b2d2904c9eaf5239dd71fc420d6b87203e59f"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-retirement-mutant.log",
+      "size": 758,
+      "sha256": "40d83a67cfb308d816f0b796c085a6164c4503a0c1118e25916b5a2e5d2fdb49"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-sensitivity.json",
+      "size": 245,
+      "sha256": "4731da099e0f5e1baf259cb58ce089d0eab0dc71c63bfba8bce303a2679188e9"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-targeted.log",
+      "size": 223,
+      "sha256": "57141fa700e8815e1796ae425e96e0ba954a760ddc0e95ff102755c72752882b"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-test-entry-failed.log",
+      "size": 153,
+      "sha256": "c562944179669065d5fb6a54907cdfaf4f04b77f07ccece065df59f8e78a62a4"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-tests.log",
+      "size": 13368,
+      "sha256": "029dc89818bba443e4cd56f4d5d46406dac06e037b7fa371bcefbd94370b7d37"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-typecheck.log",
+      "size": 111,
+      "sha256": "7c15c0e2dcbca06e6ce5cabbba48c6d34cbdbb4d40bd6f0a4f8865552bb57582"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-wire-after.log",
+      "size": 420,
+      "sha256": "032e795c0b81b13a80d72fd24a97b1b351ba6f80eb3229a2325b1050595b3d54"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-wire-before.log",
+      "size": 3175,
+      "sha256": "930b2570e50cc1c308e353b6913c1209478d6adbc6b34abdc9b127a693ec5035"
+    }
+  ]
+}

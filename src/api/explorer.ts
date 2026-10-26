@@ -855,7 +855,6 @@ export interface NetworkSecurity {
   version: number;
   capabilities: string;
   authPolicy: AuthPolicy | null;
-  controllerCodes: string[] | null;
   sizeLimits: DecodedConfig;
 }
 
@@ -864,9 +863,9 @@ export async function getNetworkSecurity(): Promise<NetworkSecurity> {
   const block = await pqExplorer.observation();
   // Two inspections at a time stay within the native default worker budget.
   const global = await pqExplorer.config(8, block);
-  const [controllers, policy] = await Promise.all([pqExplorer.config(47, block), pqExplorer.config(48, block)]);
+  const policy = await pqExplorer.config(48, block);
   const limits = await pqExplorer.config(43, block);
-  for (const item of [controllers, policy, limits]) {
+  for (const item of [policy, limits]) {
     if (item.observation.global_id !== global.observation.global_id || item.observation.chain_time !== global.observation.chain_time || item.observation.vm_version !== global.observation.vm_version) throw new Error("Inconsistent configuration observation");
   }
   const value = global.value!, auth = policy.value;
@@ -874,7 +873,6 @@ export async function getNetworkSecurity(): Promise<NetworkSecurity> {
     block, globalId: global.observation.global_id, chainTime: global.observation.chain_time,
     version: Number(value.version), capabilities: String(value.capabilities),
     authPolicy: auth ? { networkTag: String(auth.network_tag), sequence: String(auth.policy_sequence), retired: Number(auth.retired_flags), primaryDeadline: auth.primary_deadline as number | null, specHash: String(auth.policy_spec_hash) } : null,
-    controllerCodes: controllers.value ? controllers.value.controller_codes as string[] : null,
     sizeLimits: limits,
   };
 }
@@ -887,8 +885,7 @@ export async function getGovernanceConfig(): Promise<GovernanceConfigProof> {
     { id: 36, name: "Next validator set", description: "The elected next validator set, when one is committed." },
     { id: 40, name: "Misbehavior and slashing", description: "The chain configuration for validator punishment, when enabled." },
     { id: 43, name: "Message and state limits", description: "Protocol limits affecting large post-quantum messages and contract state." },
-    { id: 47, name: "Validator controller policy", description: "Committed controller code allowlist; code identity alone does not prove deployed account authority." },
-    { id: 48, name: "Quantum AUTH policy", description: "Network namespace, policy sequence and daily authorization retirement schedule; mandatory at version 17+." },
+    { id: 48, name: "Quantum AUTH policy", description: "Network namespace, policy sequence and daily authorization retirement schedule; mandatory at version 16+." },
   ];
   return withPreview(async () => {
     const info = await rpc.call<MasterchainInfo>("getMasterchainInfo");
@@ -909,7 +906,7 @@ export async function getAccount(address: string): Promise<AccountDetail> {
   return withPreview(async () => {
     const info = await rpc.call<AccountInfo>("getAddressInformation", { address });
     const [capability, agents, events, jettons, nfts, indexedTransactions] = await Promise.all([
-      optional(rpc.call<AccountCapability>("getAccountCapability", { address }), null),
+      optional(rpc.call<AccountCapability>("getAccountCapability", { address, include_pq: true }), null),
       optional(rpc.call<{ agents: AccountAgent[] }>("getAccountAgents", { address }).then((value) => value.agents), []),
       optional(rpc.call<{ events: WalletEvent[] }>("getAccountEvents", { address, limit: 50 }).then((value) => value.events), []),
       optional(rpc.call<{ jettons: JettonPosition[] }>("getAccountJettons", { address, limit: 100 }).then((value) => value.jettons), []),

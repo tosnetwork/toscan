@@ -69,6 +69,7 @@ export function pqSignatures(value: unknown, expected: BlockId, withProof = fals
 export const FAMILY_NAMES: Record<string, string> = {
   pq_highload_mldsa44_v1: "PQ Highload Wallet", mldsa44_auth_module_v1: "ML-DSA Authorization Module",
   falcon512_padded_auth_module_v1: "Falcon Authorization Module", quantum_module_v1: "Quantum Module",
+  quantum_self_pay_v1: "Quantum Self-pay Wallet",
   quantum_wallet_v4: "Quantum Wallet", quantum_fee_vault_v3: "Quantum Fee Vault",
 };
 export interface PublicAuthorization {
@@ -93,6 +94,11 @@ function publicState(v: Record<string, unknown>, family: string) {
     case "mldsa44_auth_module_v1": keys(v, ["kind", "algorithm_id", "global_id", "public_key"]); requireValue(v.algorithm_id === 1 && i32(v.global_id) && bytes(v.public_key, 1312, 1312)); break;
     case "falcon512_padded_auth_module_v1": keys(v, ["kind", "algorithm_id", "profile_version", "global_id", "public_key"]); requireValue(v.algorithm_id === 2 && v.profile_version === 1 && i32(v.global_id) && bytes(v.public_key, 897, 897)); break;
     case "quantum_module_v1": moduleState(v); break;
+    case "quantum_self_pay_v1": {
+      keys(v, ["kind", "seqno", "wallet_id", "retired_flags", "authority_epoch", "primary_nonce", "rescue_nonce", "global_id", "network_tag", "authority_hash", "primary", "rescue", "fee_payment"]);
+      requireValue(uint(v.seqno) && uint(v.wallet_id) && [0, 2].includes(Number(v.retired_flags)) && typeof v.retired_flags === "number" && u64(v.authority_epoch) && u64(v.primary_nonce) && u64(v.rescue_nonce) && hash(v.authority_hash) && v.fee_payment === "wallet_balance");
+      moduleState({ kind: "quantum_module_v1", global_id: v.global_id, network_tag: v.network_tag, primary: v.primary, rescue: v.rescue }); break;
+    }
     case "quantum_wallet_v4": {
       keys(v, ["kind", "seqno", "wallet_id", "auth_mode", "retired_flags", "authority_epoch", "primary_nonce", "rescue_nonce", "legacy_signature_enabled", "module_state_init_hash", "module", "fee"]);
       requireValue(uint(v.seqno) && uint(v.wallet_id) && v.auth_mode === 2 && uint(v.retired_flags, 16) && u64(v.authority_epoch) && u64(v.primary_nonce) && u64(v.rescue_nonce) && v.legacy_signature_enabled === false && hash(v.module_state_init_hash));
@@ -116,27 +122,22 @@ export function publicAuthorization(value: unknown, expected: BlockId): PublicAu
   return v as unknown as PublicAuthorization;
 }
 export interface DecodedConfig {
-  schema_version: 1; param: 8 | 43 | 47 | 48; presence: "present" | "absent";
+  schema_version: 1; param: 8 | 43 | 48; presence: "present" | "absent";
   observation: { block_id: BlockId; global_id: number; chain_time: number; vm_version: number };
   value: Record<string, unknown> | null;
 }
 const V1 = ["max_msg_bits", "max_msg_cells", "max_library_cells", "max_ext_msg_size", "max_vm_data_depth", "max_ext_msg_depth"];
 const V2 = [...V1, "max_acc_state_cells", "max_mc_acc_state_cells", "max_acc_public_libraries", "defer_out_queue_size_limit", "max_msg_extra_currencies", "max_acc_fixed_prefix_length", "acc_state_cells_for_storage_dict"];
-const V3 = [...V2, "max_transaction_library_loads", "max_total_msg_bits", "max_total_msg_cells"];
+const V3 = [...V2, "max_transaction_library_loads", "max_total_msg_bits", "max_total_msg_cells", "out_msg_queue_size_hard_limit", "out_msg_queue_size_soft_limit"];
 export function decodedConfig(value: unknown, param: number, expected: BlockId): DecodedConfig {
   const v = object(value), observation = object(v.observation);
   sameBlock(observation.block_id, expected);
-  requireValue(v.schema_version === 1 && v.param === param && [8, 43, 47, 48].includes(param) && ["present", "absent"].includes(String(v.presence)) && i32(observation.global_id) && uint(observation.chain_time) && uint(observation.vm_version));
+  requireValue(v.schema_version === 1 && v.param === param && [8, 43, 48].includes(param) && ["present", "absent"].includes(String(v.presence)) && i32(observation.global_id) && uint(observation.chain_time) && uint(observation.vm_version));
   if (v.presence === "absent" && param !== 43) {
-    requireValue((param === 47 || (param === 48 && observation.vm_version < 17)) && v.value === null);
+    requireValue((param === 48 && observation.vm_version < 16) && v.value === null);
   } else {
     const data = object(v.value);
     if (param === 8) requireValue(v.presence === "present" && data.kind === "global_version" && data.version === observation.vm_version && u64(data.capabilities));
-    if (param === 47) {
-      requireValue(data.kind === "validator_controller_policy_v1" && Array.isArray(data.controller_codes) && data.controller_codes.length <= 8 && data.controller_codes.every(hash));
-      const codes = data.controller_codes as string[];
-      const raw = codes.map((code) => atob(code)); requireValue(raw.every((code, i) => i === 0 || raw[i - 1]! < code));
-    }
     if (param === 48) {
       requireValue(data.kind === "auth_policy_v1" && hash(data.network_tag) && u64(data.policy_sequence) && uint(data.retired_flags, 16) && !(data.retired_flags & ~2) && (data.primary_deadline === null || (uint(data.primary_deadline) && data.primary_deadline > 0)) && data.policy_spec_hash === "XkOArtyV+Mty3lX3UG3gJptHwDrR0e0OUYTDMlRCYsA=");
       const retired = Boolean(data.retired_flags & 2) || (typeof data.primary_deadline === "number" && observation.chain_time >= data.primary_deadline);

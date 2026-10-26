@@ -1,7 +1,9 @@
 # Native PQ RPC integration
 
 TOSCAN consumes the versioned native explorer interfaces from the TOS
-`feat/explorer-pq-rpc-validation` implementation branch. Native integration was
+native node. Current self-pay integration is documented in
+[Quantum self-pay observation](quantum-self-pay-observation.md). The measurements
+below are historical. Original integration was
 measured against merge commit `8d8a065227c6c83f5686e56c3da783132f4745f2` (including
 main `19473401a`). Deploy the node interface and both TOSCAN frontend/query
 services together. Older nodes that ignore typed opt-ins report an explicit
@@ -15,9 +17,9 @@ validation records remain historical observations.
 | Interface | TOSCAN use | Boundary |
 | --- | --- | --- |
 | R1 signatures | Masterchain block details show stable signer IDs, suite, historical set source, verified weight and node trust anchor; proof downloads are explicit | Full immutable target ID, duplicate/length/suite/session/weight checks; historical keys are not inferred from the latest set |
-| R2 public authorization | Account details use `include_pq:true` for all six native code families, unknown code and no-active-code states | Canonical requested account and workchain, complete masterchain binding, schema/role validation, no partial fields after failure |
+| R2 public authorization | Account details use `include_pq:true` for all seven native code families, unknown code and no-active-code states | Canonical requested account and workchain, complete masterchain binding, schema/role validation, no partial fields after failure |
 | R3 proof transport | Developer API page submits one bounded native TL query and downloads its reply | Exact POST REST allowlist; node enforces the native read-only query allowlist; API key stays in the reverse proxy |
-| R4 typed policy | Network view uses Config 8/43/47/48 with `include_decoded:true` | Same full block/global ID/chain time/VM version; authenticated absence, frozen AUTH profile and deadline, native effective limits/defaults |
+| R4 typed policy | Network view uses Config 8/43/48 with `include_decoded:true` | Same full block/global ID/chain time/VM version; authenticated absence, frozen AUTH profile and deadline, native effective limits/defaults |
 
 The node performs cryptographic verification. Wire checks and node-reported
 `state_verified`/`node_verified` are not independent browser proof verification,

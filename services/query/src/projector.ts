@@ -202,12 +202,12 @@ export class Projector {
   }
 
   private async syncGovernance(headSeqno: number): Promise<void> {
-    const ids = [0, 8, 34, 36, 40, 43, 47, 48];
+    const ids = [0, 8, 34, 36, 40, 43, 48];
     const parameters = await Promise.all(ids.map(async (id) => {
       const request = this.rpc.call<{ config?: { bytes?: string } }>(
         "getConfigParam", { param: id, seqno: headSeqno },
       );
-      const result = [36, 43, 47, 48].includes(id) ? await request.catch((error: unknown) => {
+      const result = [36, 43, 48].includes(id) ? await request.catch((error: unknown) => {
         if (error instanceof Error && error.message === `getConfigParam failed (500): config param ${id} not found`) return null;
         throw error;
       }) : await request;

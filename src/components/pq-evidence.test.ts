@@ -37,6 +37,23 @@ describe("PQ evidence presentation", () => {
     expect(wrapper.text()).not.toContain("Code hash matched");
     wrapper.unmount();
   });
+  it("renders native self-pay roles and clears them after a failed account change", async () => {
+    const auth = fixture.accounts.find((a) => a.code_family === "quantum_self_pay_v1")!;
+    account.mockResolvedValue(auth);
+    const wrapper = mount(AccountCryptography, { props: { address: "0:" + "00".repeat(32) } }); await flushPromises();
+    expect(wrapper.text()).toContain("Quantum Self-pay Wallet · Code hash matched");
+    expect(wrapper.text()).toContain("ML-DSA-44");
+    expect(wrapper.text()).toContain("SLH-DSA-SHA2-128s");
+    expect(wrapper.text()).toContain("Wallet balance (self-pay)");
+    expect(wrapper.text()).toContain("18446744073709551615");
+    expect(wrapper.text()).not.toContain("HSS/LMS");
+    expect(wrapper.text()).not.toContain("module state init");
+    account.mockRejectedValue(new Error("Invalid authenticated account proof"));
+    await wrapper.setProps({ address: "0:" + "11".repeat(32) }); await flushPromises();
+    expect(wrapper.text()).toContain("Invalid authenticated account proof");
+    expect(wrapper.text()).not.toContain("Wallet balance (self-pay)");
+    wrapper.unmount();
+  });
   it("does not automatically retry PQ failures", async () => {
     vi.useFakeTimers(); signatures.mockRejectedValue(new Error("Busy"));
     const wrapper = mount(BlockFinality, { props: { block: fixture.signature.id } }); await flushPromises();
