@@ -70,3 +70,20 @@ test("refuses malformed recognized authority without showing partial fields", as
   await expect(account.getByText("Code hash matched", { exact: false })).toHaveCount(0);
   await expect(account.getByRole("button", { name: "Download account proof" })).toHaveCount(0);
 });
+
+test("reports unavailable classification when busy without duplicate PQ inspections", async ({ page }) => {
+  if (!process.env.TOSCAN_PQ_ACCOUNTS) throw new Error("Missing public disposable account map");
+  const accounts = JSON.parse(await readFile(process.env.TOSCAN_PQ_ACCOUNTS, "utf8"));
+  const inspections: boolean[] = [];
+  await page.route("**/jsonRPC", async (route) => {
+    const body = route.request().postDataJSON();
+    if (body.method !== "getAccountCapability") return route.continue();
+    inspections.push(body.params.include_pq === true);
+    await route.fulfill({ json: { jsonrpc: "2.0", id: body.id, error: { code: -32005, message: "Server busy", data: { schema_version: 1, reason: "RESOURCE_LIMIT", retryable: true } } } });
+  });
+  await page.goto(`/address/${accounts.quantum_self_pay_v1}`);
+  await expect(page.locator(".account-metrics").getByText("Classification unavailable", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Account cryptography" }).getByRole("alert")).toContainText("Server busy");
+  await expect(page.getByText("Standard account", { exact: true })).toHaveCount(0);
+  expect(inspections.sort()).toEqual([false, true]);
+});

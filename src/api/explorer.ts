@@ -906,7 +906,7 @@ export async function getAccount(address: string): Promise<AccountDetail> {
   return withPreview(async () => {
     const info = await rpc.call<AccountInfo>("getAddressInformation", { address });
     const [capability, agents, events, jettons, nfts, indexedTransactions] = await Promise.all([
-      optional(rpc.call<AccountCapability>("getAccountCapability", { address, include_pq: true }), null),
+      optional(rpc.call<AccountCapability>("getAccountCapability", { address }), null),
       optional(rpc.call<{ agents: AccountAgent[] }>("getAccountAgents", { address }).then((value) => value.agents), []),
       optional(rpc.call<{ events: WalletEvent[] }>("getAccountEvents", { address, limit: 50 }).then((value) => value.events), []),
       optional(rpc.call<{ jettons: JettonPosition[] }>("getAccountJettons", { address, limit: 100 }).then((value) => value.jettons), []),

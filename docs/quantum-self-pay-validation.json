@@ -7,7 +7,7 @@
     "targeted_pass": 37,
     "full_unit_pass": 88,
     "database_integration_skipped": 21,
-    "live_browser_pass": 8,
+    "live_browser_pass": 10,
     "native_probe_exit": 0,
     "retirement_mutant_exit": 1,
     "restored_exit": 0
@@ -173,6 +173,143 @@
       "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-wire-before.log",
       "size": 3175,
       "sha256": "930b2570e50cc1c308e353b6913c1209478d6adbc6b34abdc9b127a693ec5035"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-card-capacity-lint.log",
+      "size": 106,
+      "sha256": "25fe8f2f66711ba1ed467ca846f5bd8ff4b4780962d2f88e2216cb05a8d7d467"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-card-capacity-full-tests.log",
+      "size": 13366,
+      "sha256": "c2e87400efe5273a14ee311218573ee496f138de727281be39c6739312237c9c"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-card-capacity-build.log",
+      "size": 6761,
+      "sha256": "246081496d8f04d316a7c84bc0ed86dadc414d575037cb0f7aafd0f18684bc00"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-card-capacity-after.log",
+      "size": 220,
+      "sha256": "f97c703ef19968e5281420577c88d1ff0990a80dad5a387a8416393ee5af0fb0"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-card-capacity-typecheck.log",
+      "size": 111,
+      "sha256": "7c15c0e2dcbca06e6ce5cabbba48c6d34cbdbb4d40bd6f0a4f8865552bb57582"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-card-capacity-before.log",
+      "size": 2372,
+      "sha256": "67a4f2530fd2c902799e45b5e064cba5ba5c9e9e958b0a659ad3e10ebd71e76e"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-third-party-review.json",
+      "size": 8159,
+      "sha256": "a4f8bb8a014a41c1f95e3b13d9f73a57117dd33ced71ffe4ba3dfc9559c6d48e"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/run-toscan-self-pay-live.py",
+      "size": 2935,
+      "sha256": "3bb3dfb46d91eb00f6312182459c5d3da080f17093c47f6fbcb8456f011d9aeb"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/results.json",
+      "size": 408,
+      "sha256": "bc6ba03dff0353cf4416dc755ad7560f8d334a9ead8ac8b321fffb5390c8d648"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/probe.json",
+      "size": 111919,
+      "sha256": "c10c7fa81f32576deff194a39986543c3f0c58840c95c438b33cb76908e84d02"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/probe.log",
+      "size": 408,
+      "sha256": "e6384022c8cace553305fa5deefe9afddeaef79091a76cc97375ac714a9e5135"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/browser.log",
+      "size": 19068,
+      "sha256": "f63cc3c5e91e6b477824a49c983010e19245b49db6a200abd5957e381a0af74b"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/network-exit.json",
+      "size": 13,
+      "sha256": "97485f1a5636fc208dd63d060c878cfb2766c9cd055c05f66cc9d40271e58624"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-desktop/protocol.png",
+      "size": 187585,
+      "sha256": "e5a8e75e3eb25ebe2588b8bf133f8d409b3da744c76fcb5fa204b56cfe7828c5"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-desktop/account.png",
+      "size": 151261,
+      "sha256": "c70ad3c6a602052a35d7b4dd032d2f080fd205186b5af7959868258d5e1ea272"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/screenshots/pq-native-rpc-shows-native-81788-pinned-proof-only-on-demand-pq-rpc-mobile/finality.png",
+      "size": 204471,
+      "sha256": "ee9c76c09402ae19a4deb38cf86326f6208b26ec481b79fd3f509797894cec40"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/screenshots/pq-native-rpc-shows-native-81788-pinned-proof-only-on-demand-pq-rpc-desktop/finality.png",
+      "size": 56286,
+      "sha256": "232eb1a5c451706bc18d93dfe359e2307493a16368a41da2d518cb4566b05a79"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-mobile/protocol.png",
+      "size": 580162,
+      "sha256": "702454140373d64c74150b4ad76e3a6568713e6c11b59c9dd38265221c5e3cf1"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/screenshots/pq-native-rpc-shows-native-a4608-effective-protocol-defaults-pq-rpc-mobile/account.png",
+      "size": 468411,
+      "sha256": "b7c14368332f01dc824b480a0fb6feda19703a05a05b27cd5beae4932c2e598a"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/screenshots/pq-native-rpc-shows-self-p-83521-ts-its-native-account-proof-pq-rpc-mobile/self-pay-account.png",
+      "size": 347485,
+      "sha256": "648b61d8ec2cb742c58ac8f1860d8c027a8bb34246028820f2c770fe304b0e2a"
+    },
+    {
+      "path": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-card-fix-1793018281513968000/screenshots/pq-native-rpc-shows-self-p-83521-ts-its-native-account-proof-pq-rpc-desktop/self-pay-account.png",
+      "size": 112730,
+      "sha256": "a58f3f472a4e0fd06becfd6ffc411d6354bf04f0a86cca9925e5435568c81798"
     }
-  ]
+  ],
+  "review_fix": {
+    "finding": "Main card bypassed PQ queue, repeated expensive inspections and hid failures as Standard account",
+    "fix": "Restore inexpensive legacy classification; explicit Classification unavailable; validated panel retains sole expensive role inspection",
+    "baseline_test_exit": 1,
+    "restored_test_exit": 0,
+    "live_busy_control": "Both desktop and mobile see explicit unavailable/error and exactly one PQ + one legacy classification request",
+    "prior_review": "/Users/tomisetsu/validation/mobile-quantum-handoff/toscan-self-pay-third-party-review.json",
+    "reviewed_prior_head": "d8cd777756d67449db0f5247f73dea49269cd8d0",
+    "new_review": "pending"
+  },
+  "artifact_scope": "Files named before/targeted/final-targeted are historical reference-decoder runs; wire-after is current 37-test run. New card-capacity logs and live card-fix directory cover review correction. Child exit-2 is intentional SIGINT cleanup, not a failed chain probe.",
+  "source_files": {
+    "docs/native-pq-rpc.md": "3c7205ca57d238207e82e6d91d29edbc1fff64433093ebfae583b1de0f10b62e",
+    "docs/quantum-self-pay-observation.md": "299802cb63affa380334d01deb0f3ebd2c63ce54d9d50beddf044c0b834bdf55",
+    "e2e/pq-native-rpc.spec.ts": "440888abb2f5bfa7b725f3b1832673215d4797c0c70de77a337abbdc44f5da40",
+    "scripts/verify-pq-localnet.ts": "677ed71aaae2bcc8f8652ae1b432c47b20a0fc9da169dc9d7d67415b465de166",
+    "services/query/src/pq.ts": "8bbde2d36ddccc051847644a9e8e68dae627b397701f8bf5f4dfac33d2223495",
+    "services/query/src/projector.test.ts": "d3e697b845ee2fbef249a23b4fc86fd5d020defd7a6f097a5c7c912d722b8907",
+    "services/query/src/projector.ts": "caff7ffd95815252958e0b9afee6695f54741adb2b76a9809552c4865f0d40ec",
+    "src/api/explorer.ts": "03ee24f1910d8b0a97908cede31e7f662d5c1ea4003ec325e6f28cafb6059933",
+    "src/api/fixtures/pq-legacy-configs.json": "1fb008ff662ac4c4ffb0ebdc6aea9f3576939e48b2d3862358c6b6aa46d7b3cd",
+    "src/api/fixtures/pq-native.json": "4d83478219d327a47a24760119f126a15d149fa9abc23d05c7eff7b9872d90b1",
+    "src/api/fixtures/pq-native.manifest.json": "06ae6794828edb86de01c13646d0c89fee93a9574692adfbd4bb9a9e6cac5349",
+    "src/api/network-security.test.ts": "3719cbee44502dfa63a8fb3f6e19a12f87d9f1e3645154a578b857ee73dace1c",
+    "src/api/pq.test.ts": "144a81d02381e76a2e2e4f74094f464703c8638b912904b053f4db89759961ba",
+    "src/api/pqExplorer.ts": "a159b921634659e169fa394024d880989ff83996c109fce20f29909de1b7b227",
+    "src/components/AccountCryptography.vue": "c8461b0e6d1d23a0f0298a499615550a4755e97fba686ecd72f294c2a12fb272",
+    "src/components/ProtocolSecurity.vue": "a905a8737582f3c77276438705e10d9ff2d8b2675bd1b8625d9faeb6ee99e789",
+    "src/components/pq-evidence.test.ts": "7981380603e36e0f8e265cd8a19e188c079ae4f464b649593c826a2f0ae50760",
+    "src/utils/protocol.ts": "04741fabe0412923c6bba1096ba9341a8bdd8667cff11ab5c73f9de975b15b87",
+    "src/views/AddressView.vue": "fcb0948eef01086837b10d74ff7bd2c6649910f813ddad7a7e30eea5db46c382"
+  }
 }

@@ -36,11 +36,11 @@ describe("pinned native protocol evidence", () => {
     expect(retired).toHaveLength(3);
     for (const config of retired) expect(() => decodedConfig(config, config.param, masterBlock(config.observation.block_id))).toThrow();
   });
-  it("requests opt-in classification for the main account card", async () => {
+  it("keeps the main card on the legacy classification path outside PQ capacity", async () => {
     call.mockImplementation(async (method) => method === "getAccountCapability" ? { account_model: "advanced.wallet.quantum_self_pay" } : {});
     const address = "0:" + "11".repeat(32);
     expect((await getAccount(address)).capability?.account_model).toBe("advanced.wallet.quantum_self_pay");
-    expect(call).toHaveBeenCalledWith("getAccountCapability", { address, include_pq: true });
+    expect(call).toHaveBeenCalledWith("getAccountCapability", { address });
   });
   it("rejects mixed-block evidence", async () => {
     node(0, true); await expect(getNetworkSecurity()).rejects.toThrow("Invalid PQ");

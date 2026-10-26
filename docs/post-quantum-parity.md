@@ -1,3 +1,5 @@
+> Historical assessment: protocol assumptions below are superseded by [current native RPC integration](native-pq-rpc.md) and [self-pay observations](quantum-self-pay-observation.md). Current Falcon/CP48 gates are VM16 and CP47 is retired.
+
 # Post-quantum explorer parity
 
 **Native RPC follow-up:** [versioned native integration](native-pq-rpc.md) replaces
