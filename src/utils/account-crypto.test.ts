@@ -16,6 +16,7 @@ describe("compiled fixture provenance", () => {
     "mldsa-module-func": "crypto/smartcont/mldsa44-auth-module.fc",
     "module-func": "crypto/smartcont/falcon512-auth-module.fc",
     "quantum-wallet": "crypto/smartcont/wallet-quantum-code.fc",
+    "quantum-self-pay": "crypto/smartcont/wallet-quantum-self-pay.fc",
     "quantum-module": "crypto/smartcont/wallet-quantum-module.fc",
     "quantum-vault": "crypto/smartcont/wallet-quantum-fee-vault.fc",
     "pq-highload": "crypto/smartcont/pq-highload-wallet-code.fc",
@@ -75,5 +76,51 @@ describe("SDK-built complete Quantum candidate public state", () => {
     expect(inspectAccountCryptography(code["quantum-wallet"], activeLegacyKey).status).toBe("invalid");
     const vault = inspectAccountCryptography(code["quantum-vault"], state.vault);
     expect(vault.status).toBe("known"); expect(vault.fields["Next fee leaf"]).toBe("0");
+  });
+});
+
+describe("Quantum self-pay public storage", () => {
+  const authority = (policy = 1, keySize = 1312) => beginCell().storeUint(1, 8)
+    .storeInt(-3, 32).storeBuffer(Buffer.alloc(32, 0x42)).storeUint(1, 8)
+    .storeRef(chain(keySize)).storeBuffer(Buffer.alloc(32, 0x22)).storeUint(policy, 8).endCell();
+  const storage = (flags = 2, version = 1, policy = 1, keySize = 1312) => beginCell()
+    .storeUint(version, 8).storeUint(0xffffffff, 32).storeUint(7, 32).storeUint(flags, 16)
+    .storeUint(0xffffffffffffffffn, 64).storeUint(0xffffffffffffffffn, 64)
+    .storeUint(0xffffffffffffffffn, 64).storeRef(authority(policy, keySize));
+
+  it("decodes the TOS frozen public genesis identity as self-pay without a fee signer", async () => {
+    const fixture = await import("./quantum-self-pay-state-fixture.json");
+    const result = inspectAccountCryptography(code["quantum-self-pay"], fixture.data);
+    expect(result.status).toBe("known");
+    expect(result.codeHash).toBe(fixture.codeHash);
+    expect(result.fields).toMatchObject({ "Global ID": "1", "Wallet ID": String(fixture.walletId),
+      "Daily public key": fixture.primaryKey, "Rescue public key": fixture.rescueKey,
+      "Daily authorization": "ML-DSA-44", "Rescue authorization": "SLH-DSA-SHA2-128s",
+      "Fee payment": "Wallet balance (self-pay)", "Primary nonce": "0" });
+    expect(result.fields["Fee authorization"]).toBeUndefined();
+    expect(result.fields["Module StateInit identity"]).toBeUndefined();
+  });
+  it("preserves signed network IDs and exact uint64 counters under both policies", () => {
+    for (const policy of [1, 2]) {
+      const result = inspectAccountCryptography(code["quantum-self-pay"], boc(storage(2, 1, policy)));
+      expect(result.status).toBe("known");
+      expect(result.fields).toMatchObject({ "Global ID": "-3", "Retirement flags": "2",
+        "Sequence number": "4294967295", "Wallet ID": "7", "Authority epoch": "18446744073709551615",
+        "Primary nonce": "18446744073709551615", "Rescue nonce": "18446744073709551615",
+        "Rescue policy": policy === 1 ? "Ready" : "Required" });
+    }
+  });
+  it("rejects undefined retirement flags, schema versions, policies and key lengths", () => {
+    for (const [flags, version, policy, keySize] of [[1, 1, 1, 1312], [4, 1, 1, 1312],
+      [2, 2, 1, 1312], [2, 1, 0, 1312], [2, 1, 3, 1312], [2, 1, 1, 1311]]) {
+      expect(inspectAccountCryptography(code["quantum-self-pay"], boc(storage(flags, version, policy, keySize))).status).toBe("invalid");
+    }
+  });
+  it("rejects trailing bits and references instead of showing partial decoded fields", () => {
+    for (const data of [boc(storage().storeBit(false)), boc(storage().storeRef(beginCell().endCell()))]) {
+      const result = inspectAccountCryptography(code["quantum-self-pay"], data);
+      expect(result.status).toBe("invalid");
+      expect(result.fields).toEqual({});
+    }
   });
 });
