@@ -1,3 +1,4 @@
+import { decodeNodeTokenData, decodeNodeTokenPositions } from "./nodeTokens.js";
 import { boundedText } from "./response.js";
 import type {
   BlockHeader,
@@ -87,9 +88,9 @@ export class TosRpc {
     return this.call("getMasterchainInfo");
   }
 
-  accountJettons(address: string): Promise<JettonPosition[]> {
-    return this.call<{ jettons: JettonPosition[] }>("getAccountJettons", { address, limit: 256 })
-      .then((result) => result.jettons);
+  accountTokens(address: string): Promise<JettonPosition[]> {
+    return this.call<unknown>("getAccountTokens", { address, limit: 256 })
+      .then(decodeNodeTokenPositions);
   }
 
   accountNfts(address: string): Promise<NftPosition[]> {
@@ -98,7 +99,7 @@ export class TosRpc {
   }
 
   tokenData(address: string): Promise<TokenData> {
-    return this.call<TokenData>("getTokenData", { address });
+    return this.call<unknown>("getTokenData", { address }).then(decodeNodeTokenData);
   }
 
   blockId(workchain: number, shard: string, seqno: number): Promise<BlockId> {

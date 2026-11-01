@@ -61,15 +61,15 @@ describe("PostgreSQL projector RPC", () => {
   it("reads node-verified asset positions and metadata", async () => {
     vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
       const method = new URL(String(input)).pathname.slice(1);
-      if (method === "getAccountJettons") return response({ jettons: [{ jetton_master: "0:master", jetton_wallet: "0:wallet", last_lt: "10" }] });
+      if (method === "getAccountTokens") return response({ tokens: [{ token_master: "0:master", token_wallet: "0:wallet", last_lt: "10" }] });
       if (method === "getAccountNfts") return response({ nfts: [{ nft_item: "0:item", collection: null, last_lt: "11" }] });
-      if (method === "getTokenData") return response({ "@type": "ext.tokens.jettonMasterData", total_supply: "100" });
+      if (method === "getTokenData") return response({ "@type": "ext.tokens.tokenMasterData", mintable: true, admin_address: "0:admin", token_content: "content-boc", token_wallet_code: "wallet-boc", total_supply: "100", token_name: "Credit", token_decimals: "6" });
       throw new Error(`unexpected method ${method}`);
     }));
     const rpc = new TosRpc({ baseUrl: "http://node" });
-    await expect(rpc.accountJettons("0:owner")).resolves.toHaveLength(1);
+    await expect(rpc.accountTokens("0:owner")).resolves.toEqual([{ jetton_master: "0:master", jetton_wallet: "0:wallet", last_lt: "10" }]);
     await expect(rpc.accountNfts("0:owner")).resolves.toHaveLength(1);
-    await expect(rpc.tokenData("0:master")).resolves.toMatchObject({ "@type": "ext.tokens.jettonMasterData" });
+    await expect(rpc.tokenData("0:master")).resolves.toMatchObject({ "@type": "ext.tokens.jettonMasterData", jetton_name: "Credit", jetton_decimals: "6" });
   });
 });
 

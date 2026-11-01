@@ -1,3 +1,4 @@
+import { decodeNodeTokenData, decodeNodeTokenPositions } from "../../services/query/src/nodeTokens";
 import type {
   AccountDetail,
   Agent,
@@ -231,18 +232,18 @@ export function getPreviewToken(address: string, hint?: string): TokenData {
       individual_content: "te6cckEBAQEAIgAAQFByZXZpZXcgTkZUIGNvbnRlbnQgY29tbWl0bWVudA==",
     };
   }
-  return {
-    "@type": "ext.tokens.jettonMasterData",
+  return decodeNodeTokenData({
+    "@type": "ext.tokens.tokenMasterData",
     total_supply: "1000000000000000",
     mintable: true,
     admin_address: previewAddress,
-    jetton_content: "te6cckEBAQEAIwAAQlByZXZpZXcgSmV0dG9uIG1ldGFkYXRh",
-    jetton_wallet_code: "te6cckEBAQEAAwAAAgA=",
-    jetton_name: address === serviceAddress ? "Service Credit" : "TOS Preview Asset",
-    jetton_symbol: address === serviceAddress ? "SRV" : "TPA",
-    jetton_decimals: "9",
-    jetton_description: "Preview metadata illustrating the node-authoritative token detail view.",
-  };
+    token_content: "te6cckEBAQEAIwAAQlByZXZpZXcgSmV0dG9uIG1ldGFkYXRh",
+    token_wallet_code: "te6cckEBAQEAAwAAAgA=",
+    token_name: address === serviceAddress ? "Service Credit" : "TOS Preview Asset",
+    token_symbol: address === serviceAddress ? "SRV" : "TPA",
+    token_decimals: "9",
+    token_description: "Preview metadata illustrating the node-authoritative token detail view.",
+  });
 }
 
 export function getPreviewAccount(address: string): AccountDetail {
@@ -291,7 +292,7 @@ export function getPreviewAccount(address: string): AccountDetail {
         comment: index === 0 ? "Task settlement" : undefined,
       }],
     })),
-    jettons: [{ jetton_master: `0:${hash(154)}`, jetton_wallet: `0:${hash(155)}`, last_lt: previewTransactions[0]!.lt }],
+    jettons: decodeNodeTokenPositions({ tokens: [{ token_master: `0:${hash(154)}`, token_wallet: `0:${hash(155)}`, last_lt: previewTransactions[0]!.lt }] }),
     nfts: [{ nft_item: `0:${hash(157)}`, collection: `0:${hash(158)}`, last_lt: previewTransactions[1]!.lt }],
     indexedTransactions: previewTransactions.filter((transaction) => transaction.account === address),
     indexedTransactionTotal: previewTransactions.filter((transaction) => transaction.account === address).length,

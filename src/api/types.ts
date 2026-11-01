@@ -151,11 +151,7 @@ export interface WalletEvent {
   }>;
 }
 
-export interface JettonPosition {
-  jetton_master: string;
-  jetton_wallet: string;
-  last_lt: string;
-}
+export type JettonPosition = import("../../services/query/src/nodeTokens").ExplorerTokenPosition;
 
 export interface NftPosition {
   nft_item: string;
@@ -163,37 +159,11 @@ export interface NftPosition {
   last_lt: string;
 }
 
-export interface JettonMasterData {
-  "@type": "ext.tokens.jettonMasterData";
-  total_supply: string;
-  mintable: boolean;
-  admin_address: string;
-  jetton_content: string;
-  jetton_wallet_code: string;
-  jetton_name?: string;
-  jetton_symbol?: string;
-  jetton_decimals?: string;
-  jetton_image?: string;
-  jetton_description?: string;
-}
+export type JettonMasterData = import("../../services/query/src/nodeTokens").ExplorerTokenMaster;
 
-export interface NftItemData {
-  "@type": "ext.tokens.nftItemData";
-  init: boolean;
-  index: number;
-  collection_address: string;
-  owner_address: string;
-  individual_content: string;
-}
-
-export interface NftCollectionData {
-  "@type": "ext.tokens.nftCollectionData";
-  next_item_index: number;
-  collection_content: string;
-  owner_address: string;
-}
-
-export type TokenData = JettonMasterData | NftItemData | NftCollectionData;
+export type NftItemData = import("../../services/query/src/nodeTokens").ExplorerNftItem;
+export type NftCollectionData = import("../../services/query/src/nodeTokens").ExplorerNftCollection;
+export type TokenData = import("../../services/query/src/nodeTokens").ExplorerTokenData;
 
 export interface BlockSummary extends BlockId {
   time: number;
